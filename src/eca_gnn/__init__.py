@@ -1,3 +1,5 @@
+__version__ = "0.0.1"
+
 from eca_gnn.ca_toolbox import (
     CA1D, eca_rule_bits,
     seed_simple, seed_finite_block, seed_random,
@@ -8,5 +10,9 @@ from eca_gnn.ca_toolbox import (
     compressibility_ratio, power_spectrum,
     next_state_int, attractor_basins, d_spectrum_tau,
     de_bruijn_graph_labels, ndfa_for_outputs, subset_construction_dfa,
-    renyi_entropy_from_counts, renyi_spatial_set_measure, renyi_temporal_entropy
+    renyi_entropy_from_counts, renyi_spatial_set_measure, renyi_temporal_entropy,
+)
+
+from eca_gnn.sanity_check import (
+    run_sanity_check,
 )

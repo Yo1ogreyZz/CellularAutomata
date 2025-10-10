@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import ca_toolbox as eca
+import eca_gnn.ca_toolbox as eca
 
 def quick_checks_light(rules=(0,50,90,110,30), N=256, T_simple=128, T_rand=256, seed_p=0.5, drop_transient=32):
     rows = []
@@ -102,19 +102,27 @@ def render_report(df, packs, out_html, assets_dir):
     with open(out_html, "w", encoding="utf-8") as f:
         f.write(html)
 
+def run_sanity_check(
+    rules: list = [8,76,50,18,110],
+    N: int = 256,
+    out: str = "./data/ca_report.html",
+    assets: str = "./data/ca_report_assets"
+):
+    df, packs = quick_checks_light(rules=rules, N=N)
+    os.makedirs(assets, exist_ok=True)
+    render_report(df, packs, out, assets)
+
 def main():
-    import argparse, os
+    import argparse
     p = argparse.ArgumentParser()
-    p.add_argument("--rules", type=str, default="0,50,90,110,30")
+    p.add_argument("--rules", type=str, default="8,76,50,18,110")
     p.add_argument("--N", type=int, default=256)
     p.add_argument("--out", type=str, default="./data/ca_report.html")
     p.add_argument("--assets", type=str, default="./data/ca_report_assets")
     args = p.parse_args()
 
     rules = [int(x) for x in args.rules.split(",") if x.strip()]
-    df, packs = quick_checks_light(rules=rules, N=args.N)
-    os.makedirs(args.assets, exist_ok=True)
-    render_report(df, packs, args.out, args.assets)
+    run_sanity_check(rules, args.N, args.out, args.assets)
 
 if __name__ == "__main__":
     main()
