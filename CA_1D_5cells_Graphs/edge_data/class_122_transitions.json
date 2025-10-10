@@ -1,0 +1,528 @@
+{
+  "class_id": 122,
+  "total_transitions": 32,
+  "transitions_by_type": {
+    "0_to_0": [
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "0000",
+        "edge_label": "00_00",
+        "full_config": "00000",
+        "config_decimal": 0
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "0010",
+        "edge_label": "00_10",
+        "full_config": "00010",
+        "config_decimal": 2
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "0100",
+        "edge_label": "01_00",
+        "full_config": "01000",
+        "config_decimal": 8
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "0101",
+        "edge_label": "01_01",
+        "full_config": "01001",
+        "config_decimal": 9
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "0110",
+        "edge_label": "01_10",
+        "full_config": "01010",
+        "config_decimal": 10
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "0111",
+        "edge_label": "01_11",
+        "full_config": "01011",
+        "config_decimal": 11
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "1000",
+        "edge_label": "10_00",
+        "full_config": "10000",
+        "config_decimal": 16
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "1001",
+        "edge_label": "10_01",
+        "full_config": "10001",
+        "config_decimal": 17
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "1010",
+        "edge_label": "10_10",
+        "full_config": "10010",
+        "config_decimal": 18
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "1011",
+        "edge_label": "10_11",
+        "full_config": "10011",
+        "config_decimal": 19
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "1100",
+        "edge_label": "11_00",
+        "full_config": "11000",
+        "config_decimal": 24
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "1101",
+        "edge_label": "11_01",
+        "full_config": "11001",
+        "config_decimal": 25
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "1110",
+        "edge_label": "11_10",
+        "full_config": "11010",
+        "config_decimal": 26
+      },
+      {
+        "from_state": 0,
+        "to_state": 0,
+        "neighbor_config": "1111",
+        "edge_label": "11_11",
+        "full_config": "11011",
+        "config_decimal": 27
+      }
+    ],
+    "0_to_1": [
+      {
+        "from_state": 0,
+        "to_state": 1,
+        "neighbor_config": "0001",
+        "edge_label": "00_01",
+        "full_config": "00001",
+        "config_decimal": 1
+      },
+      {
+        "from_state": 0,
+        "to_state": 1,
+        "neighbor_config": "0011",
+        "edge_label": "00_11",
+        "full_config": "00011",
+        "config_decimal": 3
+      }
+    ],
+    "1_to_0": [
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "0011",
+        "edge_label": "00_11",
+        "full_config": "00111",
+        "config_decimal": 7
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "0100",
+        "edge_label": "01_00",
+        "full_config": "01100",
+        "config_decimal": 12
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "0101",
+        "edge_label": "01_01",
+        "full_config": "01101",
+        "config_decimal": 13
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "0110",
+        "edge_label": "01_10",
+        "full_config": "01110",
+        "config_decimal": 14
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "0111",
+        "edge_label": "01_11",
+        "full_config": "01111",
+        "config_decimal": 15
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "1000",
+        "edge_label": "10_00",
+        "full_config": "10100",
+        "config_decimal": 20
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "1001",
+        "edge_label": "10_01",
+        "full_config": "10101",
+        "config_decimal": 21
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "1010",
+        "edge_label": "10_10",
+        "full_config": "10110",
+        "config_decimal": 22
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "1011",
+        "edge_label": "10_11",
+        "full_config": "10111",
+        "config_decimal": 23
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "1100",
+        "edge_label": "11_00",
+        "full_config": "11100",
+        "config_decimal": 28
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "1101",
+        "edge_label": "11_01",
+        "full_config": "11101",
+        "config_decimal": 29
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "1110",
+        "edge_label": "11_10",
+        "full_config": "11110",
+        "config_decimal": 30
+      },
+      {
+        "from_state": 1,
+        "to_state": 0,
+        "neighbor_config": "1111",
+        "edge_label": "11_11",
+        "full_config": "11111",
+        "config_decimal": 31
+      }
+    ],
+    "1_to_1": [
+      {
+        "from_state": 1,
+        "to_state": 1,
+        "neighbor_config": "0000",
+        "edge_label": "00_00",
+        "full_config": "00100",
+        "config_decimal": 4
+      },
+      {
+        "from_state": 1,
+        "to_state": 1,
+        "neighbor_config": "0001",
+        "edge_label": "00_01",
+        "full_config": "00101",
+        "config_decimal": 5
+      },
+      {
+        "from_state": 1,
+        "to_state": 1,
+        "neighbor_config": "0010",
+        "edge_label": "00_10",
+        "full_config": "00110",
+        "config_decimal": 6
+      }
+    ]
+  },
+  "all_transitions": [
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "0000",
+      "edge_label": "00_00",
+      "full_config": "00000",
+      "config_decimal": 0
+    },
+    {
+      "from_state": 0,
+      "to_state": 1,
+      "neighbor_config": "0001",
+      "edge_label": "00_01",
+      "full_config": "00001",
+      "config_decimal": 1
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "0010",
+      "edge_label": "00_10",
+      "full_config": "00010",
+      "config_decimal": 2
+    },
+    {
+      "from_state": 0,
+      "to_state": 1,
+      "neighbor_config": "0011",
+      "edge_label": "00_11",
+      "full_config": "00011",
+      "config_decimal": 3
+    },
+    {
+      "from_state": 1,
+      "to_state": 1,
+      "neighbor_config": "0000",
+      "edge_label": "00_00",
+      "full_config": "00100",
+      "config_decimal": 4
+    },
+    {
+      "from_state": 1,
+      "to_state": 1,
+      "neighbor_config": "0001",
+      "edge_label": "00_01",
+      "full_config": "00101",
+      "config_decimal": 5
+    },
+    {
+      "from_state": 1,
+      "to_state": 1,
+      "neighbor_config": "0010",
+      "edge_label": "00_10",
+      "full_config": "00110",
+      "config_decimal": 6
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "0011",
+      "edge_label": "00_11",
+      "full_config": "00111",
+      "config_decimal": 7
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "0100",
+      "edge_label": "01_00",
+      "full_config": "01000",
+      "config_decimal": 8
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "0101",
+      "edge_label": "01_01",
+      "full_config": "01001",
+      "config_decimal": 9
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "0110",
+      "edge_label": "01_10",
+      "full_config": "01010",
+      "config_decimal": 10
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "0111",
+      "edge_label": "01_11",
+      "full_config": "01011",
+      "config_decimal": 11
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "0100",
+      "edge_label": "01_00",
+      "full_config": "01100",
+      "config_decimal": 12
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "0101",
+      "edge_label": "01_01",
+      "full_config": "01101",
+      "config_decimal": 13
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "0110",
+      "edge_label": "01_10",
+      "full_config": "01110",
+      "config_decimal": 14
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "0111",
+      "edge_label": "01_11",
+      "full_config": "01111",
+      "config_decimal": 15
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "1000",
+      "edge_label": "10_00",
+      "full_config": "10000",
+      "config_decimal": 16
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "1001",
+      "edge_label": "10_01",
+      "full_config": "10001",
+      "config_decimal": 17
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "1010",
+      "edge_label": "10_10",
+      "full_config": "10010",
+      "config_decimal": 18
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "1011",
+      "edge_label": "10_11",
+      "full_config": "10011",
+      "config_decimal": 19
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "1000",
+      "edge_label": "10_00",
+      "full_config": "10100",
+      "config_decimal": 20
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "1001",
+      "edge_label": "10_01",
+      "full_config": "10101",
+      "config_decimal": 21
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "1010",
+      "edge_label": "10_10",
+      "full_config": "10110",
+      "config_decimal": 22
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "1011",
+      "edge_label": "10_11",
+      "full_config": "10111",
+      "config_decimal": 23
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "1100",
+      "edge_label": "11_00",
+      "full_config": "11000",
+      "config_decimal": 24
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "1101",
+      "edge_label": "11_01",
+      "full_config": "11001",
+      "config_decimal": 25
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "1110",
+      "edge_label": "11_10",
+      "full_config": "11010",
+      "config_decimal": 26
+    },
+    {
+      "from_state": 0,
+      "to_state": 0,
+      "neighbor_config": "1111",
+      "edge_label": "11_11",
+      "full_config": "11011",
+      "config_decimal": 27
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "1100",
+      "edge_label": "11_00",
+      "full_config": "11100",
+      "config_decimal": 28
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "1101",
+      "edge_label": "11_01",
+      "full_config": "11101",
+      "config_decimal": 29
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "1110",
+      "edge_label": "11_10",
+      "full_config": "11110",
+      "config_decimal": 30
+    },
+    {
+      "from_state": 1,
+      "to_state": 0,
+      "neighbor_config": "1111",
+      "edge_label": "11_11",
+      "full_config": "11111",
+      "config_decimal": 31
+    }
+  ]
+}
