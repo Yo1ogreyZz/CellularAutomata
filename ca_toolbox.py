@@ -63,11 +63,16 @@ class CA1D:
         # build neighborhood int with LSB = rightmost neighbor
         # For r=1: idx = (left<<2)|(center<<1)|right
         nb_int = np.zeros(N, dtype=np.int32)
-        for k, w in enumerate(range(-r, r+1)[::-1]):  # MSB first
-            nb_int = (nb_int << 1) | np.roll(x, -w)  # -w because left shift in index
-        # Dispatch via rule_table (for general r, rule_table must include all keys)
-        vec = np.vectorize(lambda nb: self.rule_table.get(nb, 0))
-        y = vec(nb_int).astype(np.uint8)
+        for w in range(-r, r+1):  # MSB first: w=-r..r builds (left..right)
+            nb_int = (nb_int << 1) | np.roll(x, -w)  # np.roll(x,-w) -> x[i+w]
+        # Fast LUT dispatch
+        K = 1 << n
+        if not hasattr(self, '_lut') or self._lut is None or len(self._lut) != K:
+            lut = np.zeros(K, dtype=np.uint8)
+            for i in range(K):
+                lut[i] = int(self.rule_table.get(i, 0))
+            self._lut = lut
+        y = self._lut[nb_int]
         return y
     
     def evolve(self, x0: np.ndarray, T: int) -> np.ndarray:
@@ -147,7 +152,7 @@ def theta_obstruction(rule_table: Dict[int,int], n: int=3) -> float:
     for i in range(K):
         for j in range(K):
             s += (xi[i] ^ xi[j] ^ xi[i ^ j])
-    return s / (2 * K) / K  # 1/(2*2^n) * average over j; equivalent to Eq. (11)
+    return s / (K * K)  # fraction of (i,j) pairs where additivity fails
 
 def z_reverse_parameter(rule_table: Dict[int,int], r: int=1, N: int=64, trials: int=64, p: float=0.5) -> float:
     """
@@ -282,21 +287,28 @@ def difference_pattern_step(ca: CA1D, x: np.ndarray, dx: np.ndarray) -> np.ndarr
 def sheveshevsky_velocities(xs: np.ndarray, dXs: np.ndarray) -> Tuple[float,float]:
     """
     Approximate left/right cone velocities from difference pattern stack (Sec. 5.7.1).
-    Returns (v_left, v_right) as sites per step divided by total steps.
+    Assumes a single-site defect in dXs[0]. Returns (v_left, v_right) in sites/step.
     """
     T, N = dXs.shape[0]-1, dXs.shape[1]
     if T == 0: return (0.0, 0.0)
-    leftmost = []
-    rightmost = []
+    # initial defect position(s)
+    init_idx = np.where(dXs[0]>0)[0]
+    j0 = int(init_idx[0]) if init_idx.size else 0
+    left_extents = []
+    right_extents = []
     for t in range(1, T+1):
         idx = np.where(dXs[t]>0)[0]
         if idx.size == 0:
-            leftmost.append(0)
-            rightmost.append(0)
+            left_extents.append(0)
+            right_extents.append(0)
         else:
-            leftmost.append((idx.min() - idx[0]) % N)  # arbitrary reference
-            rightmost.append((idx.max() - idx[0]) % N)
-    return ( (min(leftmost) if leftmost else 0)/T, (max(rightmost) if rightmost else 0)/T )
+            # compute distance around ring relative to j0
+            dists = ((idx - j0) + N) % N
+            left_extents.append((-np.min((dists - N) % N)) % N)
+            right_extents.append(np.max(dists))
+    v_left = (max(left_extents) if left_extents else 0) / T
+    v_right = (max(right_extents) if right_extents else 0) / T
+    return (v_left, v_right)
 
 def lyapunov_profiles(ca: CA1D, x0: np.ndarray, site0: int=0, T: int=256) -> Tuple[np.ndarray, float]:
     """
@@ -391,6 +403,10 @@ def attractor_basins(ca: CA1D, Nmax: int=20) -> Dict[str, object]:
     visited = np.zeros(total, dtype=bool)
     cycles = []
     basins = []
+    # Precompute predecessor lists once
+    preds = defaultdict(list)
+    for u in range(total):
+        preds[succ[u]].append(u)
     for s in range(total):
         if visited[s]: continue
         # tortoise-hare to find cycle from s
@@ -414,9 +430,6 @@ def attractor_basins(ca: CA1D, Nmax: int=20) -> Dict[str, object]:
         # BFS backwards to collect basin nodes
         basin_nodes = set(cycle)
         dq = deque(cycle)
-        preds = defaultdict(list)
-        for u in range(total):
-            preds[succ[u]].append(u)
         while dq:
             v = dq.popleft()
             for u in preds[v]:
