@@ -4,43 +4,36 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3a345b7e-5ff0-45de-8947-dc194196f10f" name="更改" comment="" />
+    <list default="true" id="ad846c70-7f96-4992-8fd2-4885e64e00c0" name="更改" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="FileTemplateManagerImpl">
-    <option name="RECENT_TEMPLATES">
-      <list>
-        <option value="Python Script" />
-      </list>
-    </option>
-  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 5
-}]]></component>
-  <component name="ProjectId" id="33s3ksSYeTk7KBxomw5u5ySeea2" />
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 0
+}</component>
+  <component name="ProjectId" id="3409DdIIwfF2qG5fd5AKNwN5C0U" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.3cells-3states-cellular-automata-visualizer.executor": "Run",
-    "Python.3cells-3states-cellular-automata.executor": "Run",
-    "Python.5_cells_classifier.executor": "Run",
-    "Python.5_cells_visualizer.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "1D-3states-cellular-automata",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "junie.onboarding.icon.badge.shown": "true",
     "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
     "to.speed.mode.migration.done": "true",
     "vue.rearranger.settings.migration": "true"
   }
@@ -54,46 +47,20 @@
     </attachedChunks>
   </component>
   <component name="TaskManager">
-    <task id="LOCAL-00001" summary="finish 5cells 1d">
-      <option name="closed" value="true" />
-      <created>1760087672414</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1760087672414</updated>
-    </task>
     <task active="true" id="Default" summary="默认任务">
-      <changelist id="3a345b7e-5ff0-45de-8947-dc194196f10f" name="更改" comment="" />
-      <created>1760092103646</created>
+      <changelist id="ad846c70-7f96-4992-8fd2-4885e64e00c0" name="更改" comment="" />
+      <created>1760339508925</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1760092103646</updated>
-      <workItem from="1760092381307" duration="398000" />
+      <updated>1760339508925</updated>
+      <workItem from="1760339513206" duration="21000" />
+      <workItem from="1760533806184" duration="2649000" />
+      <workItem from="1760580226426" duration="15000" />
+      <workItem from="1760593302748" duration="1747000" />
     </task>
-    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
-  </component>
-  <component name="VcsManagerConfiguration">
-    <MESSAGE value="finish 5cells 1d" />
-    <option name="LAST_COMMIT_MESSAGE" value="finish 5cells 1d" />
-  </component>
-  <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/GraphRepresent_Pure_py$ca_2d_3x3_visualizer.coverage" NAME="ca_2d_3x3_visualizer 覆盖结果" MODIFIED="1760024673928" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/CellularAutomata_Sem1_2025$9_cells_Visualizer.coverage" NAME="9_cells_Visualizer 覆盖结果" MODIFIED="1760086848212" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/GraphRepresent_Pure_py$Graph_Represent.coverage" NAME="Graph_Represent 覆盖结果" MODIFIED="1758274667591" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/CellularAutomata_Sem1_2025$9_cells_Classifier.coverage" NAME="9_cells_Classifier 覆盖结果" MODIFIED="1760084776934" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/CellularAutomata_Sem1_2025$3cells_3states_cellular_automata.coverage" NAME="3cells-3states-cellular-automata 覆盖结果" MODIFIED="1760089005201" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/GraphRepresent_Pure_py$GraphRepresent_extended.coverage" NAME="GraphRepresent_extended 覆盖结果" MODIFIED="1758265228398" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/GraphRepresent_Pure_py$9_cells_Classifier.coverage" NAME="9_cells_Classifier 覆盖结果" MODIFIED="1760080718452" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/GraphRepresent_Pure_py$ca_1d_5cells_visualizer.coverage" NAME="ca_1d_5cells_visualizer 覆盖结果" MODIFIED="1760024808699" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/GraphRepresent_Pure_py$Rule_Classification.coverage" NAME="Rule_Classification 覆盖结果" MODIFIED="1758274198136" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/CellularAutomata_Sem1_2025$3cells_3states_cellular_automata_visualizer.coverage" NAME="3cells-3states-cellular-automata-visualizer 覆盖结果" MODIFIED="1760089587912" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/GraphRepresent_Pure_py$Visualize_Graph.coverage" NAME="Visualize_Graph 覆盖结果" MODIFIED="1758275210747" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/CellularAutomata_Sem1_2025$5_cells_visualizer.coverage" NAME="5_cells_visualizer 覆盖结果" MODIFIED="1760088233447" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/GraphRepresent_Pure_py$CA_2D_Graph.coverage" NAME="CA_2D_Graph 覆盖结果" MODIFIED="1760079733501" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/CellularAutomata_Sem1_2025$5_cells_classifier.coverage" NAME="5_cells_classifier 覆盖结果" MODIFIED="1760088221681" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
