@@ -16,3 +16,7 @@ from eca_gnn.ca_toolbox import (
 from eca_gnn.sanity_check import (
     run_sanity_check,
 )
+
+from eca_gnn.normalized_mutual_info_classif import (
+    normalized_mutual_info_classif,
+)

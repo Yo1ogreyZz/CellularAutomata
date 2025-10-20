@@ -1,4 +1,4 @@
-# CellularAutomata_Sem1_2025
+# CellularAutomata
 
 GitHub Repository for Project: *Cellular Automata Spatiotemporal Pattern Classification using Graph Neural Networks.*
 
@@ -7,8 +7,8 @@ GitHub Repository for Project: *Cellular Automata Spatiotemporal Pattern Classif
 Clone this repository and install locally using pip:
 
 ```bash
-$ git clone https://github.com/Yo1ogreyZz/CellularAutomata_Sem1_2025.git
-$ cd CellularAutomata_Sem1_2025
+$ git clone https://github.com/Yo1ogreyZz/CellularAutomata.git
+$ cd CellularAutomata
 $ pip install -e .
 ```
 
@@ -17,7 +17,7 @@ $ pip install -e .
 Clone this repository and run the `sanity_check.py` script to reproduce the key results from the paper.
 
 ```bash
-$ cd CellularAutomata_Sem1_2025
+$ cd CellularAutomata
 $ python src/eca_gnn/sanity_check.py \
   --rules 0,90,30,160,36,8,76,50,18,110 \
   --N 256 \
