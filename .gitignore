@@ -213,3 +213,6 @@ dev/
 
 *.xml
 .idea
+.idea/workspace.xml
+/.idea
+*.xml
