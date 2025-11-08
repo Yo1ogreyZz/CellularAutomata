@@ -5,8 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ad846c70-7f96-4992-8fd2-4885e64e00c0" name="更改" comment="">
+      <change afterPath="$PROJECT_DIR$/DynamicMethods.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/GraphRepresentations.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/GraphRepresentations.ipynb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -84,7 +84,7 @@
       <workItem from="1760580226426" duration="15000" />
       <workItem from="1762482326184" duration="325000" />
       <workItem from="1762482673083" duration="12491000" />
-      <workItem from="1762515478408" duration="2957000" />
+      <workItem from="1762515478408" duration="6173000" />
     </task>
     <servers />
   </component>
