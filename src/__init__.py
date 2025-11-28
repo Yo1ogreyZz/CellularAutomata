@@ -16,12 +16,10 @@ Main Components:
 Quick Start:
 -----------
 >>> from src import ECARule, TruthTableGraph, convert_rule
->>> 
 >>> # Method 1: Direct graph building
 >>> rule = ECARule(110)
 >>> graph = TruthTableGraph(rule)
 >>> data = graph.build()
->>> 
 >>> # Method 2: Using convenience function
 >>> results = convert_rule(110, methods=['truth_table'], verbose=True)
 """
@@ -103,4 +101,10 @@ __all__ = [
     'batch_compute_statistics',
     'get_representative_rules',
     'get_test_rules',
+    
+    # Controversial rules
+    'CONTROVERSIAL_RULES',
+    'get_controversial_rules',
+    'is_controversial', 
+    'get_controversy_info',
 ]

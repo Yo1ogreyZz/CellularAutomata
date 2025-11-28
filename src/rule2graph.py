@@ -308,6 +308,63 @@ class EvolutionGraph:
             'rule_number': self.rule.rule_number
         }
     
+    def build_multi_ic(self, n_samples: int = 3) -> List[Dict]:
+        """
+        Build evolution graphs for multiple initial conditions.
+        
+        Args:
+            n_samples: Number of different ICs to test
+            
+        Returns:
+            List of graph dictionaries, one per IC
+        """
+        ic_configs = []
+        
+        # IC 1: Single cell
+        ic1 = np.zeros(self.width, dtype=int)
+        ic1[self.width // 2] = 1
+        ic_configs.append(('single_cell', ic1))
+        
+        # IC 2: Random low density
+        np.random.seed(self.seed)
+        ic2 = (np.random.random(self.width) < 0.3).astype(int)
+        ic_configs.append(('random_low', ic2))
+        
+        # IC 3: Random medium density
+        np.random.seed(self.seed + 1)
+        ic3 = (np.random.random(self.width) < 0.5).astype(int)
+        ic_configs.append(('random_medium', ic3))
+        
+        # IC 4: Symmetric pattern (if n_samples >= 4)
+        if n_samples >= 4:
+            ic4 = np.zeros(self.width, dtype=int)
+            center = self.width // 2
+            ic4[center - 2:center + 3] = 1
+            ic_configs.append(('symmetric', ic4))
+        
+        results = []
+        for ic_type, initial_state in ic_configs[:n_samples]:
+            spacetime = self.rule.evolve(initial_state, self.steps)
+            
+            node_features = np.array([
+                self._compute_features(spacetime[t]) 
+                for t in range(self.steps + 1)
+            ])
+            
+            edges = [(t, t+1) for t in range(self.steps)]
+            
+            results.append({
+                'nodes': list(range(self.steps + 1)),
+                'node_features': node_features,
+                'edges': edges,
+                'spacetime': spacetime,
+                'graph_type': f'evolution_{ic_type}',
+                'rule_number': self.rule.rule_number,
+                'initial_condition': ic_type
+            })
+        
+        return results
+    
     def visualize(self, save_path: Optional[str] = None, show: bool = False):
         """Visualize the evolution graph"""
         graph_data = self.build()

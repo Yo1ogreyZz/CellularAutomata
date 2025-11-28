@@ -60,6 +60,101 @@ CLASS_NAMES = {
     'IV': 'Class IV (Complex)'
 }
 
+# Controversial Rules Database
+CONTROVERSIAL_RULES = {
+    18: {
+        'wolfram_label': 'III',
+        'disputed_as': ['II', 'IV'],
+        'reason': 'Propagating kink structures with non-trivial interactions',
+        'priority': 'medium'
+    },
+    54: {
+        'wolfram_label': 'IV', 
+        'disputed_as': ['III'],
+        'reason': 'Gliders similar to Rule 110 but universal computation unclear',
+        'priority': 'high' 
+    },
+    62: {
+        'wolfram_label': 'II',
+        'disputed_as': ['IV'],
+        'reason': 'IC-dependent: periodic (Class II) or glider patterns (Class IV)',
+        'priority': 'high'
+    },
+    73: {
+        'wolfram_label': 'II',
+        'disputed_as': ['III'],
+        'reason': 'IC-sensitive: periodic with barriers or chaotic behavior',
+        'priority': 'high'
+    },
+    110: {
+        'wolfram_label': 'IV',
+        'disputed_as': [],
+        'reason': 'Turing-complete proven but extremely rich dynamics make classification difficult',
+        'priority': 'medium'
+    },
+    126: {
+        'wolfram_label': 'III',
+        'disputed_as': ['II', 'IV'],
+        'reason': 'Hybrid of Classes 2/3/4: complex but not strictly chaotic',
+        'priority': 'medium'
+    },
+    224: {
+        'wolfram_label': 'INCONSISTENT',
+        'disputed_as': ['multiple'],
+        'reason': 'Literature shows contradictory classifications',
+        'priority': 'high'
+    },
+    30: {
+        'wolfram_label': 'III',
+        'disputed_as': ['subdivisions'],
+        'reason': 'Internal subdivisions within Class III',
+        'priority': 'low'
+    },
+    86: {
+        'wolfram_label': 'UNLABELED',
+        'disputed_as': ['II', 'III'],
+        'reason': 'High sensitivity to boundaries and initial conditions',
+        'priority': 'low'
+    },
+    45: {
+        'wolfram_label': 'III',
+        'disputed_as': ['II'],
+        'reason': 'At class boundary',
+        'priority': 'low'
+    },
+    94: {
+        'wolfram_label': 'II',
+        'disputed_as': ['III'],
+        'reason': 'At class boundary',
+        'priority': 'low'
+    },
+    182: {
+        'wolfram_label': 'UNLABELED',
+        'disputed_as': ['II', 'III'],
+        'reason': 'At class boundary',
+        'priority': 'low'
+    },
+}
+
+def get_controversial_rules(priority: Optional[str] = None) -> List[int]:
+    """
+    Get list of controversial rules.
+    
+    Args:
+        priority: 'high', 'medium', 'low', or None (all)
+    """
+    if priority:
+        return [r for r, info in CONTROVERSIAL_RULES.items() 
+                if info['priority'] == priority]
+    return list(CONTROVERSIAL_RULES.keys())
+
+def is_controversial(rule_number: int) -> bool:
+    """Check if a rule is controversial."""
+    return rule_number in CONTROVERSIAL_RULES
+
+def get_controversy_info(rule_number: int) -> Optional[Dict]:
+    """Get controversy information for a rule."""
+    return CONTROVERSIAL_RULES.get(rule_number)
 
 def get_wolfram_class(rule_number: int) -> str:
     """Get Wolfram class label ('I', 'II', 'III', 'IV') for a rule."""
