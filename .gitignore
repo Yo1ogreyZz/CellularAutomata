@@ -216,3 +216,5 @@ dev/
 .idea/workspace.xml
 /.idea
 *.xml
+
+.DS_Store
