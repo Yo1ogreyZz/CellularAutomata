@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ad846c70-7f96-4992-8fd2-4885e64e00c0" name="更改" comment="" />
+    <list default="true" id="ad846c70-7f96-4992-8fd2-4885e64e00c0" name="更改" comment="">
+      <change beforePath="$PROJECT_DIR$/GraphRepresentations.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/GraphRepresentations.ipynb" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
