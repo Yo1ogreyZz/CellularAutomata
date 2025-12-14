@@ -1,0 +1,18 @@
+# train_tt.pbs
+#!/bin/bash
+#PBS -N train_gnn
+#PBS -l select=1:ncpus=1:mem=8gb
+#PBS -l walltime=00:30:00
+#PBS -j oe
+
+cd $PBS_O_WORKDIR
+
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate eca
+
+export MKL_THREADING_LAYER=GNU
+export OMP_NUM_THREADS=1       
+
+python train_tt.py
+
+echo "Job finished"

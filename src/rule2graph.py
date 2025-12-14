@@ -1,522 +1,409 @@
 """
-Rule-to-Graph Conversion Methods for Elementary Cellular Automata
+Rule to Graph Conversion for ECA
 
-This module implements three different approaches to represent ECA rules as graphs:
-- Method A: Truth-Table Graph (fixed 8-node structure)
-- Method B: Dependency Graph (de Bruijn-style, 4 nodes)
-- Method C: Evolution Graph (temporal dynamics)
-
-Author: Hannah
+Implements three graph construction methods:
+1. Truth-Table Graph: 8 nodes representing 3-bit neighborhoods
+2. De Bruijn Graph: Transition graph showing rule propagation
+3. Evolution Graph: Sampled dynamics from actual CA evolution
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-import networkx as nx
-from typing import List, Tuple, Dict, Optional
+from typing import Dict, List, Tuple, Optional
 import warnings
 
 
 class ECARule:
-    """Elementary Cellular Automaton Rule representation"""
+    """Elementary Cellular Automaton Rule."""
     
     def __init__(self, rule_number: int):
-        if not 0 <= rule_number <= 255:
-            raise ValueError("Rule number must be between 0 and 255")
+        if not 0 <= rule_number < 256:
+            raise ValueError(f"Rule number must be 0-255, got {rule_number}")
         
         self.rule_number = rule_number
-        self.rule_binary = format(rule_number, '08b')
-        
-        # Build lookup table: 3-bit pattern -> output
-        self.lookup = {format(i, '03b'): int(self.rule_binary[7-i]) for i in range(8)}
-            
-    def apply(self, left: int, center: int, right: int) -> int:
-        """Apply rule to a 3-cell neighborhood"""
-        return self.lookup[f"{left}{center}{right}"]
+        self.lookup = self._build_lookup_table()
     
-    def evolve(self, initial_state: np.ndarray, steps: int) -> np.ndarray:
-        """Evolve an initial state for given number of steps"""
-        width = len(initial_state)
-        spacetime = np.zeros((steps + 1, width), dtype=int)
-        spacetime[0] = initial_state.copy()
-        
-        current = initial_state.copy()
-        for t in range(steps):
-            next_state = np.zeros(width, dtype=int)
-            for i in range(width):
-                left = current[(i-1) % width]
-                center = current[i]
-                right = current[(i+1) % width]
-                next_state[i] = self.apply(left, center, right)
-            current = next_state.copy()
-            spacetime[t+1] = current
-            
-        return spacetime
+    def _build_lookup_table(self) -> Dict[Tuple[int, int, int], int]:
+        """Build lookup table from rule number."""
+        binary = format(self.rule_number, '08b')[::-1]  # Reverse for correct indexing
+        lookup = {}
+        for i in range(8):
+            neighborhood = ((i >> 2) & 1, (i >> 1) & 1, i & 1)
+            lookup[neighborhood] = int(binary[i])
+        return lookup
     
-    def __repr__(self):
-        return f"ECARule({self.rule_number})"
+    def apply(self, neighborhood: Tuple[int, int, int]) -> int:
+        """Apply rule to a 3-bit neighborhood."""
+        return self.lookup[neighborhood]
+    
+    def get_output_pattern(self) -> np.ndarray:
+        """Get 8-bit output pattern as array."""
+        return np.array([self.lookup[(i>>2 & 1, i>>1 & 1, i & 1)] for i in range(8)])
 
 
-class TruthTableGraph:
+def truth_table_graph(rule: ECARule) -> Dict:
     """
-    Method A: Truth-Table Graph
+    Method A: Truth-Table Graph (Baseline)
     
-    Creates a uniform graph structure (same topology for all rules):
-    - 8 nodes (one per 3-bit input pattern)
-    - Node features: [left_bit, center_bit, right_bit, output_bit]
-    - Edges: Sequential + Hamming-distance-1 connections
-    """
+    Creates a graph with 8 nodes, one for each 3-bit neighborhood pattern.
+    Nodes are connected in binary sequence order.
     
-    def __init__(self, rule: ECARule):
-        self.rule = rule
-        self.num_nodes = 8
-        
-    def build(self) -> Dict:
-        """Build the truth-table graph"""
-        # Node features: [left, center, right, output]
-        node_features = np.array([
-            [int(b) for b in format(i, '03b')] + [self.rule.lookup[format(i, '03b')]]
-            for i in range(self.num_nodes)
-        ], dtype=float)
-        
-        # Build edges
-        edges = []
-        
-        # Sequential connections (bidirectional)
-        for i in range(self.num_nodes):
-            j = (i + 1) % self.num_nodes
-            edges.extend([(i, j), (j, i)])
-        
-        # Hamming-distance-1 connections
-        for i in range(self.num_nodes):
-            for j in range(i+1, self.num_nodes):
-                if bin(i ^ j).count('1') == 1:
-                    edges.extend([(i, j), (j, i)])
-        
-        return {
-            'nodes': list(range(self.num_nodes)),
-            'node_features': node_features,
-            'edges': edges,
-            'graph_type': 'truth_table',
-            'rule_number': self.rule.rule_number
-        }
-    
-    def visualize(self, save_path: Optional[str] = None, show: bool = False):
-        """Visualize the truth-table graph"""
-        graph_data = self.build()
-        
-        fig, ax = plt.subplots(figsize=(10, 10))
-        
-        G = nx.Graph()
-        G.add_nodes_from(graph_data['nodes'])
-        G.add_edges_from(graph_data['edges'])
-        
-        pos = nx.circular_layout(G)
-        node_colors = graph_data['node_features'][:, 3]  # Output bit
-        
-        # Draw nodes
-        nx.draw_networkx_nodes(G, pos, 
-                              node_color=node_colors,
-                              cmap='RdYlGn',
-                              node_size=800,
-                              vmin=0, vmax=1,
-                              ax=ax)
-        
-        # Draw edges
-        seq_edges = [(i, (i+1) % 8) for i in range(8)]
-        ham_edges = [e for e in graph_data['edges'] 
-                     if e not in seq_edges and (e[1], e[0]) not in seq_edges]
-        
-        nx.draw_networkx_edges(G, pos, seq_edges, 
-                              width=2, alpha=0.6, edge_color='black', ax=ax)
-        nx.draw_networkx_edges(G, pos, ham_edges,
-                              width=1, alpha=0.3, edge_color='blue', 
-                              style='dashed', ax=ax)
-        
-        # Labels
-        labels = {i: format(i, '03b') for i in range(8)}
-        nx.draw_networkx_labels(G, pos, labels, font_size=12, 
-                               font_weight='bold', ax=ax)
-        
-        ax.set_title(f'Truth-Table Graph | Rule {self.rule.rule_number}', 
-                    fontsize=14, fontweight='bold')
-        ax.axis('off')
-        
-        plt.tight_layout()
-        if save_path:
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        if show:
-            plt.show()
-        else:
-            plt.close()
-        
-        return fig
-
-
-class DependencyGraph:
-    """
-    Method B: Dependency Graph (de Bruijn-style)
-    
-    Models transitions between local patterns:
-    - 4 nodes (2-bit patterns: 00, 01, 10, 11)
-    - Directed edges: AB -> BC with output as edge feature
-    - Captures propagation dynamics
-    """
-    
-    def __init__(self, rule: ECARule):
-        self.rule = rule
-        self.num_nodes = 4
-        
-    def build(self) -> Dict:
-        """Build the dependency graph"""
-        # Node features: 2-bit pattern values
-        node_features = np.array([
-            [int(b) for b in format(i, '02b')]
-            for i in range(self.num_nodes)
-        ], dtype=float)
-        
-        # Build directed edges
-        edges = []
-        edge_features = []
-        
-        for i in range(8):  # All 3-bit patterns
-            pattern = format(i, '03b')
-            A, B, C = [int(b) for b in pattern]
-            output = self.rule.lookup[pattern]
-            
-            src = A * 2 + B  # Node for AB
-            dst = B * 2 + C  # Node for BC
-            
-            edges.append((src, dst))
-            edge_features.append([output])
-        
-        return {
-            'nodes': list(range(self.num_nodes)),
-            'node_features': node_features,
-            'edges': edges,
-            'edge_features': np.array(edge_features, dtype=float),
-            'graph_type': 'dependency',
-            'rule_number': self.rule.rule_number
-        }
-    
-    def visualize(self, save_path: Optional[str] = None, show: bool = False):
-        """Visualize the dependency graph"""
-        graph_data = self.build()
-        
-        fig, ax = plt.subplots(figsize=(10, 8))
-        
-        G = nx.DiGraph()
-        G.add_nodes_from(graph_data['nodes'])
-        G.add_edges_from(graph_data['edges'])
-        
-        # Square layout
-        pos = {0: (0, 1), 1: (1, 1), 2: (0, 0), 3: (1, 0)}
-        
-        nx.draw_networkx_nodes(G, pos, node_color='lightgreen',
-                              node_size=1500, ax=ax)
-        
-        edge_colors = [feat[0] for feat in graph_data['edge_features']]
-        nx.draw_networkx_edges(G, pos,
-                              edge_color=edge_colors,
-                              edge_cmap=plt.cm.RdYlGn,
-                              width=3,
-                              arrows=True,
-                              arrowsize=20,
-                              connectionstyle='arc3,rad=0.1',
-                              edge_vmin=0,
-                              edge_vmax=1,
-                              ax=ax)
-        
-        labels = {i: format(i, '02b') for i in range(4)}
-        nx.draw_networkx_labels(G, pos, labels, font_size=14, 
-                               font_weight='bold', ax=ax)
-        
-        ax.set_title(f'Dependency Graph | Rule {self.rule.rule_number}',
-                    fontsize=14, fontweight='bold')
-        ax.axis('off')
-        ax.set_xlim(-0.3, 1.3)
-        ax.set_ylim(-0.3, 1.3)
-        
-        plt.tight_layout()
-        if save_path:
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        if show:
-            plt.show()
-        else:
-            plt.close()
-        
-        return fig
-
-
-class EvolutionGraph:
-    """
-    Method C: Evolution Graph
-    
-    Samples short-term evolution:
-    - Nodes: Time steps with statistical features
-    - Node features: [density, block_density, entropy]
-    - Edges: Temporal connections
-    """
-    
-    def __init__(self, rule: ECARule, 
-                 width: int = 21, 
-                 steps: int = 10,
-                 initial_density: float = 0.5,
-                 seed: int = 42):
-        self.rule = rule
-        self.width = width
-        self.steps = steps
-        self.initial_density = initial_density
-        self.seed = seed
-        
-    def _compute_features(self, state: np.ndarray) -> np.ndarray:
-        """Compute statistical features for a state"""
-        density = state.mean()
-        
-        # Count blocks (contiguous 1s)
-        blocks = np.sum(np.diff(np.concatenate([[0], state, [0]])) == 1)
-        block_density = blocks / len(state)
-        
-        # Binary entropy
-        if 0 < density < 1:
-            entropy = -density * np.log2(density) - (1-density) * np.log2(1-density)
-        else:
-            entropy = 0.0
-        
-        return np.array([density, block_density, entropy])
-    
-    def build(self) -> Dict:
-        """Build the evolution graph"""
-        np.random.seed(self.seed)
-        initial = (np.random.random(self.width) < self.initial_density).astype(int)
-        
-        spacetime = self.rule.evolve(initial, self.steps)
-        
-        node_features = np.array([
-            self._compute_features(spacetime[t]) 
-            for t in range(self.steps + 1)
-        ])
-        
-        # Temporal connections (directed)
-        edges = [(t, t+1) for t in range(self.steps)]
-        
-        return {
-            'nodes': list(range(self.steps + 1)),
-            'node_features': node_features,
-            'edges': edges,
-            'spacetime': spacetime,
-            'graph_type': 'evolution',
-            'rule_number': self.rule.rule_number
-        }
-    
-    def build_multi_ic(self, n_samples: int = 3) -> List[Dict]:
-        """
-        Build evolution graphs for multiple initial conditions.
-        
-        Args:
-            n_samples: Number of different ICs to test
-            
-        Returns:
-            List of graph dictionaries, one per IC
-        """
-        ic_configs = []
-        
-        # IC 1: Single cell
-        ic1 = np.zeros(self.width, dtype=int)
-        ic1[self.width // 2] = 1
-        ic_configs.append(('single_cell', ic1))
-        
-        # IC 2: Random low density
-        np.random.seed(self.seed)
-        ic2 = (np.random.random(self.width) < 0.3).astype(int)
-        ic_configs.append(('random_low', ic2))
-        
-        # IC 3: Random medium density
-        np.random.seed(self.seed + 1)
-        ic3 = (np.random.random(self.width) < 0.5).astype(int)
-        ic_configs.append(('random_medium', ic3))
-        
-        # IC 4: Symmetric pattern (if n_samples >= 4)
-        if n_samples >= 4:
-            ic4 = np.zeros(self.width, dtype=int)
-            center = self.width // 2
-            ic4[center - 2:center + 3] = 1
-            ic_configs.append(('symmetric', ic4))
-        
-        results = []
-        for ic_type, initial_state in ic_configs[:n_samples]:
-            spacetime = self.rule.evolve(initial_state, self.steps)
-            
-            node_features = np.array([
-                self._compute_features(spacetime[t]) 
-                for t in range(self.steps + 1)
-            ])
-            
-            edges = [(t, t+1) for t in range(self.steps)]
-            
-            results.append({
-                'nodes': list(range(self.steps + 1)),
-                'node_features': node_features,
-                'edges': edges,
-                'spacetime': spacetime,
-                'graph_type': f'evolution_{ic_type}',
-                'rule_number': self.rule.rule_number,
-                'initial_condition': ic_type
-            })
-        
-        return results
-    
-    def visualize(self, save_path: Optional[str] = None, show: bool = False):
-        """Visualize the evolution graph"""
-        graph_data = self.build()
-        
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
-        
-        # Spacetime diagram
-        spacetime = graph_data['spacetime']
-        ax1.imshow(spacetime, cmap='binary', interpolation='nearest', aspect='auto')
-        ax1.set_xlabel('Space')
-        ax1.set_ylabel('Time')
-        ax1.set_title(f'Spacetime Evolution | Rule {self.rule.rule_number}')
-        
-        # Graph structure
-        G = nx.DiGraph()
-        G.add_nodes_from(graph_data['nodes'])
-        G.add_edges_from(graph_data['edges'])
-        
-        pos = {i: (i, 0) for i in range(len(graph_data['nodes']))}
-        node_colors = graph_data['node_features'][:, 0]
-        
-        nx.draw_networkx_nodes(G, pos, node_color=node_colors,
-                              cmap='viridis', node_size=500, ax=ax2)
-        nx.draw_networkx_edges(G, pos, width=2, alpha=0.5, ax=ax2)
-        
-        labels = {i: f't={i}' for i in range(len(graph_data['nodes']))}
-        nx.draw_networkx_labels(G, pos, labels, font_size=8, ax=ax2)
-        
-        ax2.set_title('Evolution Graph')
-        ax2.axis('off')
-        
-        plt.tight_layout()
-        if save_path:
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        if show:
-            plt.show()
-        else:
-            plt.close()
-        
-        return fig
-
-
-# Utility Functions
-def convert_rule(rule_number: int, 
-                 methods: List[str] = ['truth_table', 'dependency', 'evolution'],
-                 output_dir: Optional[str] = None,
-                 visualize: bool = True,
-                 verbose: bool = False) -> Dict:
-    """
-    Convert a rule to graph representations.
+    Node features: [left_bit, center_bit, right_bit, output_bit]
     
     Args:
-        rule_number: ECA rule number (0-255)
-        methods: List of methods to use
-        output_dir: Directory to save visualizations (None = no save)
-        visualize: Whether to generate visualizations
-        verbose: Whether to print progress
+        rule: ECARule object
         
     Returns:
-        Dictionary with graph data for each method
+        Dictionary with graph data
     """
-    import os
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
+    # Create 8 nodes for 8 neighborhoods
+    nodes = list(range(8))
     
+    # Node features: [3-bit input pattern + 1-bit output]
+    node_features = np.zeros((8, 4))
+    for i in range(8):
+        left = (i >> 2) & 1
+        center = (i >> 1) & 1
+        right = i & 1
+        output = rule.apply((left, center, right))
+        node_features[i] = [left, center, right, output]
+    
+    # Create edges: connect in binary order (creates a path graph)
+    # Also add reverse edges to make it undirected
+    edges = []
+    for i in range(7):
+        edges.append((i, i + 1))
+        edges.append((i + 1, i))
+    
+    # Add edges connecting nodes that differ by one bit
+    for i in range(8):
+        for j in range(i + 1, 8):
+            hamming = bin(i ^ j).count('1')
+            if hamming == 1:  # Adjacent in binary space
+                if (i, j) not in edges:
+                    edges.append((i, j))
+                    edges.append((j, i))
+    
+    return {
+        'nodes': nodes,
+        'edges': edges,
+        'node_features': node_features,
+        'rule_number': rule.rule_number,
+        'graph_type': 'truth_table',
+        'num_nodes': 8,
+        'num_edges': len(edges)
+    }
+
+
+def de_bruijn_graph(rule: ECARule) -> Dict:
+    """
+    Method B: De Bruijn / Dependency Graph
+    
+    Models transitions between 2-bit patterns based on 3-bit rule outputs.
+    Shows how patterns propagate through the CA.
+    
+    Nodes: 4 nodes for 2-bit patterns (00, 01, 10, 11)
+    Edges: (i, j) if 3-bit pattern [i, *] → j under the rule
+    
+    Args:
+        rule: ECARule object
+        
+    Returns:
+        Dictionary with graph data
+    """
+    # 4 nodes for 2-bit patterns
+    nodes = list(range(4))  # 00, 01, 10, 11
+    
+    # Node features: [bit0, bit1, out_when_left_0, out_when_left_1]
+    node_features = np.zeros((4, 4))
+    for i in range(4):
+        bit0 = (i >> 1) & 1
+        bit1 = i & 1
+        
+        # Output when this pattern is left part and right bit is 0
+        out_0 = rule.apply((bit0, bit1, 0))
+        # Output when this pattern is left part and right bit is 1
+        out_1 = rule.apply((bit0, bit1, 1))
+        
+        node_features[i] = [bit0, bit1, out_0, out_1]
+    
+    # Build edges: transitions based on overlapping bits
+    edges = []
+    edge_features = []
+    
+    for i in range(4):  # Source 2-bit pattern
+        i_bits = ((i >> 1) & 1, i & 1)
+        
+        for r in [0, 1]:  # Right bit
+            # The 3-bit pattern is (i's bits + r)
+            output = rule.apply((i_bits[0], i_bits[1], r))
+            
+            # Next 2-bit pattern is (second bit of i, r)
+            next_pattern = (i_bits[1] << 1) | r
+            
+            edges.append((i, next_pattern))
+            # Edge feature: [right_bit, output]
+            edge_features.append([r, output])
+    
+    edge_features = np.array(edge_features)
+    
+    return {
+        'nodes': nodes,
+        'edges': edges,
+        'node_features': node_features,
+        'edge_features': edge_features,
+        'rule_number': rule.rule_number,
+        'graph_type': 'dependency',
+        'num_nodes': 4,
+        'num_edges': len(edges)
+    }
+
+
+def evolution_graph(rule: ECARule, 
+                   num_samples: int = 20,
+                   time_steps: int = 50,
+                   lattice_size: int = 50) -> Dict:
+    """
+    Method C: Evolution Graph (Sampled Dynamics)
+    
+    Samples actual CA evolution and builds a graph from observed states.
+    Nodes represent unique configurations, edges represent transitions.
+    
+    Args:
+        rule: ECARule object
+        num_samples: Number of random initial conditions
+        time_steps: Evolution steps per sample
+        lattice_size: Size of CA lattice
+        
+    Returns:
+        Dictionary with graph data
+    """
+    def evolve_ca(initial: np.ndarray, steps: int) -> np.ndarray:
+        """Evolve CA for given steps."""
+        lattice = initial.copy()
+        history = [lattice.copy()]
+        
+        for _ in range(steps):
+            new_lattice = np.zeros_like(lattice)
+            for i in range(len(lattice)):
+                left = lattice[(i - 1) % len(lattice)]
+                center = lattice[i]
+                right = lattice[(i + 1) % len(lattice)]
+                new_lattice[i] = rule.apply((int(left), int(center), int(right)))
+            lattice = new_lattice
+            history.append(lattice.copy())
+        
+        return np.array(history)
+    
+    # Collect unique states and transitions
+    states_map = {}  # hash -> (node_id, state)
+    transitions = []
+    node_id = 0
+    
+    for _ in range(num_samples):
+        # Random initial condition
+        initial = np.random.randint(0, 2, lattice_size)
+        history = evolve_ca(initial, time_steps)
+        
+        # Process transitions
+        for t in range(len(history) - 1):
+            state_t = history[t]
+            state_t1 = history[t + 1]
+            
+            hash_t = state_t.tobytes()
+            hash_t1 = state_t1.tobytes()
+            
+            # Add states to map
+            if hash_t not in states_map:
+                states_map[hash_t] = (node_id, state_t)
+                node_id += 1
+            
+            if hash_t1 not in states_map:
+                states_map[hash_t1] = (node_id, state_t1)
+                node_id += 1
+            
+            # Add transition
+            id_t = states_map[hash_t][0]
+            id_t1 = states_map[hash_t1][0]
+            transitions.append((id_t, id_t1))
+    
+    # Build node features: aggregate statistics of each state
+    num_nodes = len(states_map)
+    node_features = np.zeros((num_nodes, 4))
+    
+    node_list = sorted(states_map.items(), key=lambda x: x[1][0])
+    for _, (node_id, state) in node_list:
+        density = np.mean(state)
+        entropy = -np.sum([(p := np.mean(state == i)) * np.log2(p + 1e-10) 
+                          for i in [0, 1]])
+        # Simple pattern features
+        transitions_01 = np.sum(np.diff(state) != 0)
+        max_run = max([len(list(g)) for k, g in 
+                      __import__('itertools').groupby(state)])
+        
+        node_features[node_id] = [density, entropy, transitions_01, max_run]
+    
+    # Remove duplicate edges
+    edges = list(set(transitions))
+    
+    return {
+        'nodes': list(range(num_nodes)),
+        'edges': edges,
+        'node_features': node_features,
+        'rule_number': rule.rule_number,
+        'graph_type': 'evolution',
+        'num_nodes': num_nodes,
+        'num_edges': len(edges)
+    }
+
+
+def convert_rule(rule_number: int,
+                methods: List[str] = ['truth_table'],
+                visualize: bool = False,
+                verbose: bool = True) -> Dict[str, Dict]:
+    """
+    Convert ECA rule to graph representation(s).
+    
+    Args:
+        rule_number: Rule number (0-255)
+        methods: List of methods to use. Options:
+                 'truth_table', 'dependency', 'evolution'
+        visualize: Whether to visualize graphs (requires matplotlib)
+        verbose: Print progress
+        
+    Returns:
+        Dictionary mapping method names to graph data dictionaries
+    """
     rule = ECARule(rule_number)
     results = {}
     
-    if verbose:
-        print(f"Processing Rule {rule_number}")
+    method_functions = {
+        'truth_table': truth_table_graph,
+        'dependency': de_bruijn_graph,
+        'evolution': evolution_graph
+    }
     
-    # Method A: Truth-Table Graph
-    if 'truth_table' in methods:
-        graph_a = TruthTableGraph(rule)
-        results['truth_table'] = graph_a.build()
-        
-        if visualize and output_dir:
-            save_path = f"{output_dir}/rule_{rule_number}_truth_table.png"
-            graph_a.visualize(save_path=save_path, show=False)
+    for method in methods:
+        if method not in method_functions:
+            warnings.warn(f"Unknown method '{method}', skipping")
+            continue
         
         if verbose:
-            print(f"  ✓ Truth-Table: {len(results['truth_table']['nodes'])} nodes, "
-                  f"{len(results['truth_table']['edges'])} edges")
-    
-    # Method B: Dependency Graph
-    if 'dependency' in methods:
-        graph_b = DependencyGraph(rule)
-        results['dependency'] = graph_b.build()
+            print(f"Building {method} graph for Rule {rule_number}...")
         
-        if visualize and output_dir:
-            save_path = f"{output_dir}/rule_{rule_number}_dependency.png"
-            graph_b.visualize(save_path=save_path, show=False)
+        graph_data = method_functions[method](rule)
+        results[method] = graph_data
         
         if verbose:
-            print(f"  ✓ Dependency: {len(results['dependency']['nodes'])} nodes, "
-                  f"{len(results['dependency']['edges'])} edges")
+            print(f"  Nodes: {graph_data['num_nodes']}, "
+                  f"Edges: {graph_data['num_edges']}")
     
-    # Method C: Evolution Graph
-    if 'evolution' in methods:
-        graph_c = EvolutionGraph(rule, width=21, steps=10)
-        results['evolution'] = graph_c.build()
-        
-        if visualize and output_dir:
-            save_path = f"{output_dir}/rule_{rule_number}_evolution.png"
-            graph_c.visualize(save_path=save_path, show=False)
-        
-        if verbose:
-            print(f"  ✓ Evolution: {len(results['evolution']['nodes'])} nodes, "
-                  f"{len(results['evolution']['edges'])} edges")
+    if visualize:
+        try:
+            visualize_graphs(results, rule_number)
+        except ImportError:
+            warnings.warn("Matplotlib not available, skipping visualization")
     
     return results
 
 
-def batch_convert(rule_list: List[int], **kwargs) -> Dict:
+def visualize_graphs(graphs: Dict[str, Dict], rule_number: int) -> None:
     """
-    Batch convert multiple rules to graphs.
+    Visualize graph representations.
+    
+    Requires matplotlib and networkx (optional dependencies).
+    """
+    import matplotlib.pyplot as plt
+    try:
+        import networkx as nx
+    except ImportError:
+        warnings.warn("NetworkX not available for visualization")
+        return
+    
+    n_graphs = len(graphs)
+    fig, axes = plt.subplots(1, n_graphs, figsize=(6 * n_graphs, 5))
+    if n_graphs == 1:
+        axes = [axes]
+    
+    for ax, (method, data) in zip(axes, graphs.items()):
+        G = nx.DiGraph()
+        G.add_nodes_from(data['nodes'])
+        G.add_edges_from(data['edges'])
+        
+        pos = nx.spring_layout(G, seed=42)
+        nx.draw(G, pos, ax=ax, with_labels=True, 
+               node_color='lightblue', node_size=500,
+               edge_color='gray', arrows=True)
+        
+        ax.set_title(f"Rule {rule_number} - {method.replace('_', ' ').title()}")
+    
+    plt.tight_layout()
+    plt.show()
+
+
+def build_multi_ic(rule_number: int,
+                  num_ics: int = 10,
+                  lattice_size: int = 100,
+                  time_steps: int = 300) -> Dict:
+    """
+    Build evolution data for multiple initial conditions.
+    
+    Used for analyzing IC-sensitivity of controversial rules.
     
     Args:
-        rule_list: List of rule numbers
-        **kwargs: Arguments passed to convert_rule()
+        rule_number: Rule number
+        num_ics: Number of random initial conditions
+        lattice_size: Size of CA lattice
+        time_steps: Evolution steps
         
     Returns:
-        Dictionary mapping rule numbers to their graph representations
+        Dictionary with evolution data for each IC
     """
-    results = {}
-    verbose = kwargs.get('verbose', False)
+    rule = ECARule(rule_number)
+    results = []
     
-    for rule_num in rule_list:
-        try:
-            results[rule_num] = convert_rule(rule_num, **kwargs)
-        except Exception as e:
-            if verbose:
-                print(f"  ✗ Error processing rule {rule_num}: {e}")
+    for i in range(num_ics):
+        initial = np.random.randint(0, 2, lattice_size)
+        
+        # Evolve
+        history = [initial]
+        lattice = initial.copy()
+        
+        for _ in range(time_steps):
+            new_lattice = np.zeros_like(lattice)
+            for j in range(len(lattice)):
+                left = lattice[(j - 1) % len(lattice)]
+                center = lattice[j]
+                right = lattice[(j + 1) % len(lattice)]
+                new_lattice[j] = rule.apply((int(left), int(center), int(right)))
+            lattice = new_lattice
+            history.append(lattice.copy())
+        
+        results.append({
+            'ic_index': i,
+            'initial_condition': initial,
+            'evolution': np.array(history),
+            'final_state': lattice
+        })
     
-    return results
+    return {
+        'rule_number': rule_number,
+        'num_ics': num_ics,
+        'lattice_size': lattice_size,
+        'time_steps': time_steps,
+        'evolutions': results
+    }
 
 
-# Main
+# A Quick test
 if __name__ == "__main__":
-    # Example usage
-    print("ECA Rule-to-Graph Converter")
-    print("=" * 50)
+    print("Testing rule2graph module...")
     
-    # Convert Rule 110 as example
-    rule_num = 110
-    print(f"\nConverting Rule {rule_num}...")
+    # Test Rule 30 (Class III - Chaotic)
+    print("\n=== Rule 30 ===")
+    graphs_30 = convert_rule(30, methods=['truth_table', 'dependency'])
     
-    results = convert_rule(
-        rule_num, 
-        output_dir='./graphs',
-        visualize=True,
-        verbose=True
-    )
+    # Test Rule 110 (Class IV - Complex)
+    print("\n=== Rule 110 ===")
+    graphs_110 = convert_rule(110, methods=['truth_table'])
     
-    print(f"\n✓ Completed! Visualizations saved to ./graphs/")
+    print("\nrule2graph module working!")
