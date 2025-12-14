@@ -21,7 +21,6 @@ import json
 from pathlib import Path
 from typing import List, Dict, Tuple
 import sys
-import os
 
 sys.path.append('..')
 from src.rule2graph import ECARule, TruthTableGraph, DependencyGraph, EvolutionGraph
@@ -237,28 +236,6 @@ def extract_embeddings(model: nn.Module,
     return embeddings
 
 
-def aggregate_evolution_embeddings(raw_embeddings: Dict[int, np.ndarray],
-                                  ic_mapping: Dict[int, List[int]],
-                                  dataset: List[Data]) -> Dict[int, np.ndarray]:
-    """
-    Aggregate embeddings from multiple ICs into single embedding per rule
-    
-    Uses mean pooling across all IC samples
-    """
-    aggregated = {}
-    
-    for rule_num, sample_indices in ic_mapping.items():
-        ic_embeddings = []
-        
-        for idx in sample_indices:
-            rule_num_sample = dataset[idx].rule_number.item()
-            ic_embeddings.append(raw_embeddings[rule_num_sample])
-        
-        aggregated[rule_num] = np.mean(ic_embeddings, axis=0)
-    
-    return aggregated
-
-
 def train_truth_table_representation(rule_numbers: List[int],
                                      output_dir: Path,
                                      device: str = 'cpu') -> Dict:
@@ -471,8 +448,9 @@ def main():
     output_dir = Path('../outputs/embeddings')
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Use CPU (can change to 'cuda' if available)
-    device = 'cpu'
+    # Check for GPU
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using device: {device}")
     
     # Get all 88 classified rules
     rule_numbers = sorted(list(WOLFRAM_CLASSES.keys()))
@@ -507,8 +485,8 @@ def main():
     with open(output_dir / 'training_summary.json', 'w') as f:
         json.dump(summary, f, indent=2)
     
-
-    print(f"\nResults saved to: {output_dir}")
+    print(f"\n{'='*60}")
+    print(f"Results saved to: {output_dir}")
     print("\nGenerated files:")
     print("  - truth_table_embeddings.pkl")
     print("  - dependency_embeddings.pkl")
@@ -519,6 +497,7 @@ def main():
     for name, emb_dict in results.items():
         sample_emb = next(iter(emb_dict.values()))
         print(f"  {name}: {len(rule_numbers)} rules x {len(sample_emb)} dims")
+    print("="*60)
 
 
 if __name__ == '__main__':
