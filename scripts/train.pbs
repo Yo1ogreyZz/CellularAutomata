@@ -1,0 +1,18 @@
+#!/bin/bash
+#PBS -N eca_gnn_training
+#PBS -l select=1:ncpus=4:mem=16gb
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#PBS -o $HOME/eca_training.log
+
+cd $PBS_O_WORKDIR/scripts
+
+source ~/miniconda3/bin/activate eca
+
+echo "Starting GNN training for three representations..."
+echo "Date: $(date)"
+echo "Node: $(hostname)"
+
+python train_embeddings.py 
+
+echo "Training completed at: $(date)"
