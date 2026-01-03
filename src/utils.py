@@ -213,11 +213,22 @@ def to_pyg_data(graph_data: Dict) -> 'Data':
     
     x = torch.tensor(graph_data['node_features'], dtype=torch.float)
     edge_list = graph_data['edges']
-    edge_index = torch.tensor(edge_list, dtype=torch.long).t().contiguous()
     
+    # 处理边索引：确保即使边列表为空，也创建正确形状的张量 [2, num_edges]
+    if len(edge_list) == 0:
+        # 如果没有边，创建空的 edge_index，形状为 [2, 0]
+        edge_index = torch.empty((2, 0), dtype=torch.long)
+    else:
+        edge_index = torch.tensor(edge_list, dtype=torch.long).t().contiguous()
+    
+    # 处理 edge_attr：确保与边的数量一致
     edge_attr = None
     if 'edge_features' in graph_data and graph_data['edge_features'] is not None:
-        edge_attr = torch.tensor(graph_data['edge_features'], dtype=torch.float)
+        if len(graph_data['edge_features']) > 0:
+            edge_attr = torch.tensor(graph_data['edge_features'], dtype=torch.float)
+        # 如果 edge_features 存在但是空数组，edge_attr 保持为 None
+    # 注意：对于批处理，所有图必须要么都有 edge_attr，要么都没有
+    # 如果需要统一处理，可以在这里添加逻辑
     
     rule_number = graph_data['rule_number']
     y = torch.tensor([get_wolfram_class_id(rule_number)], dtype=torch.long)
@@ -254,6 +265,74 @@ def batch_to_pyg_dataset(graph_dict_list: List[Dict],
             graph_type = graph_data['graph_type']
             filename = f"rule_{rule_num}_{graph_type}.pt"
             torch.save(pyg_data, save_dir / filename)
+    
+    return dataset
+
+
+def normalize_dataset_edge_attr(dataset: List['Data'], graph_type: str) -> List['Data']:
+    """
+    根据图类型统一处理数据集的 edge_attr，确保批处理兼容性
+    
+    Args:
+        dataset: PyTorch Geometric Data 对象列表
+        graph_type: 图类型 ('truth_table', 'dependency', 'evolution', 'pattern_vocabulary')
+    
+    Returns:
+        处理后的数据集
+    """
+    if not TORCH_AVAILABLE:
+        raise ImportError("PyTorch Geometric is required")
+    
+    # 根据图类型决定是否需要统一处理 edge_attr
+    needs_normalization = {
+        'truth_table': False,      # truth_table 没有 edge_attr
+        'dependency': False,       # dependency 所有图都有 edge_attr
+        'evolution': False,        # evolution 没有 edge_attr
+        'pattern_vocabulary': True # pattern_vocabulary 可能有些图有 edge_attr，有些没有
+    }
+    
+    if graph_type not in needs_normalization:
+        raise ValueError(f"Unknown graph_type: {graph_type}")
+    
+    if not needs_normalization[graph_type]:
+        # 不需要统一处理，直接返回
+        return dataset
+    
+    # 需要统一处理（pattern_vocabulary）
+    # 检查是否有图包含 edge_attr
+    has_edge_attr_list = [hasattr(data, 'edge_attr') and data.edge_attr is not None for data in dataset]
+    has_any_edge_attr = any(has_edge_attr_list)
+    
+    if not has_any_edge_attr:
+        # 所有图都没有 edge_attr，不需要处理
+        return dataset
+    
+    # 有些图有 edge_attr，需要确保所有图都有
+    # 获取第一个有 edge_attr 的图的特征维度
+    sample_data = next((d for d in dataset if hasattr(d, 'edge_attr') and d.edge_attr is not None), None)
+    if sample_data is not None:
+        edge_dim = sample_data.edge_attr.size(1)
+        for i, data in enumerate(dataset):
+            if not has_edge_attr_list[i]:
+                # 为没有 edge_attr 的图创建默认值
+                # 安全地获取边的数量：检查 edge_index 是否存在及其维度
+                if hasattr(data, 'edge_index') and data.edge_index is not None:
+                    if data.edge_index.dim() >= 2:
+                        num_edges = data.edge_index.size(1)
+                    elif data.edge_index.dim() == 1:
+                        # 如果是一维，可能是空的或格式不对
+                        num_edges = 0
+                    else:
+                        num_edges = 0
+                else:
+                    # 没有 edge_index
+                    num_edges = 0
+                
+                if num_edges > 0:
+                    data.edge_attr = torch.zeros(num_edges, edge_dim, dtype=torch.float, device=data.x.device)
+                else:
+                    # 如果没有边，创建空的 edge_attr 以保持一致性
+                    data.edge_attr = torch.zeros(0, edge_dim, dtype=torch.float, device=data.x.device)
     
     return dataset
 

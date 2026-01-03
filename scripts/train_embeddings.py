@@ -11,19 +11,22 @@ import json
 from pathlib import Path
 from typing import List, Dict, Tuple
 import sys
+import os
+from datetime import datetime
 
 sys.path.append('..')
 from src.rule2graph import ECARule, TruthTableGraph, DependencyGraph, EvolutionGraph, PatternVocabularyGraph
-from src.utils import WOLFRAM_CLASSES, to_pyg_data
+from src.utils import WOLFRAM_CLASSES, to_pyg_data, normalize_dataset_edge_attr
 
 
 class GraphAutoencoder(nn.Module):
     
-    def __init__(self, input_dim: int, hidden_dims: List[int], latent_dim: int):
+    def __init__(self, input_dim: int, hidden_dims: List[int], latent_dim: int, dropout: float = 0.0):
         super().__init__()
         
         self.input_dim = input_dim
         self.latent_dim = latent_dim
+        self.dropout = dropout
         
         layers = []
         dims = [input_dim] + hidden_dims + [latent_dim]
@@ -58,12 +61,34 @@ class GraphAutoencoder(nn.Module):
             x = layer(x)
             if i < len(self.decoder_layers) - 1:
                 x = F.relu(x)
+                if self.dropout > 0 and self.training:
+                    x = F.dropout(x, p=self.dropout, training=self.training)
         
         return x
     
     def forward(self, data: Data) -> Tuple[torch.Tensor, torch.Tensor]:
         z = self.encode(data)
-        x_recon = self.decode(z, data.x.size(0))
+        
+        if hasattr(data, 'batch') and data.batch is not None:
+
+            x_recon_list = []
+            unique_batches = torch.unique(data.batch, sorted=True)
+            
+            for graph_idx in unique_batches:
+                
+                node_mask = (data.batch == graph_idx)
+                num_nodes = node_mask.sum().item()
+
+                graph_idx_int = graph_idx.item()
+                graph_embedding = z[graph_idx_int:graph_idx_int+1]  # [1, latent_dim]
+                
+                x_recon_graph = self.decode(graph_embedding, num_nodes)
+                x_recon_list.append(x_recon_graph)
+            
+            x_recon = torch.cat(x_recon_list, dim=0)
+        else:
+            x_recon = self.decode(z, data.x.size(0))
+        
         return z, x_recon
 
 
@@ -78,6 +103,9 @@ def build_truth_table_dataset(rule_numbers: List[int]) -> List[Data]:
         pyg_data = to_pyg_data(graph_data)
         pyg_data.rule_number = torch.tensor([rule_num])
         dataset.append(pyg_data)
+    
+    # 根据图类型统一处理 edge_attr（truth_table 不需要处理，但保持一致性）
+    dataset = normalize_dataset_edge_attr(dataset, graph_type='truth_table')
     
     return dataset
 
@@ -94,6 +122,9 @@ def build_dependency_dataset(rule_numbers: List[int]) -> List[Data]:
         pyg_data.rule_number = torch.tensor([rule_num])
         dataset.append(pyg_data)
     
+    # 根据图类型统一处理 edge_attr（dependency 不需要处理，但保持一致性）
+    dataset = normalize_dataset_edge_attr(dataset, graph_type='dependency')
+    
     return dataset
 
 
@@ -108,6 +139,9 @@ def build_pattern_vocabulary_dataset(rule_numbers: List[int], pattern_size: int 
         pyg_data = to_pyg_data(graph_data)
         pyg_data.rule_number = torch.tensor([rule_num])
         dataset.append(pyg_data)
+    
+    # 根据图类型统一处理 edge_attr
+    dataset = normalize_dataset_edge_attr(dataset, graph_type='pattern_vocabulary')
     
     return dataset
 
@@ -144,6 +178,9 @@ def build_evolution_dataset(rule_numbers: List[int],
         
         ic_mapping[rule_num] = sample_indices
     
+    # 根据图类型统一处理 edge_attr（evolution 不需要处理，但保持一致性）
+    dataset = normalize_dataset_edge_attr(dataset, graph_type='evolution')
+    
     return dataset, ic_mapping
 
 
@@ -152,10 +189,11 @@ def train_model(model: nn.Module,
                 epochs: int = 200,
                 batch_size: int = 16,
                 learning_rate: float = 0.001,
+                weight_decay: float = 0.0,
                 device: str = 'cpu',
                 verbose: bool = True) -> List[float]:
     model = model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     
@@ -219,19 +257,23 @@ def train_truth_table_representation(rule_numbers: List[int],
         'hidden_dims': [32, 16],
         'latent_dim': 8,
         'batch_size': 16,
-        'epochs': 200,
-        'learning_rate': 0.001
+        'epochs': 125,
+        'learning_rate': 0.001,
+        'dropout': 0.1,
+        'weight_decay': 1e-4
     }
     
     model = GraphAutoencoder(
         input_dim=config['input_dim'],
         hidden_dims=config['hidden_dims'],
-        latent_dim=config['latent_dim']
+        latent_dim=config['latent_dim'],
+        dropout=config['dropout']
     )
     
     losses = train_model(model, dataset, epochs=config['epochs'],
                         batch_size=config['batch_size'],
                         learning_rate=config['learning_rate'],
+                        weight_decay=config['weight_decay'],
                         device=device, verbose=True)
     
     embeddings = extract_embeddings(model, dataset, device=device)
@@ -259,11 +301,12 @@ def train_dependency_representation(rule_numbers: List[int],
     
     config = {
         'input_dim': 2,
-        'hidden_dims': [16, 8],
+        'hidden_dims': [32, 16],
         'latent_dim': 8,
         'batch_size': 16,
-        'epochs': 200,
-        'learning_rate': 0.001
+        'epochs': 300,
+        'learning_rate': 0.0005,
+        'weight_decay': 1e-4
     }
     
     model = GraphAutoencoder(
@@ -275,6 +318,7 @@ def train_dependency_representation(rule_numbers: List[int],
     losses = train_model(model, dataset, epochs=config['epochs'],
                         batch_size=config['batch_size'],
                         learning_rate=config['learning_rate'],
+                        weight_decay=config['weight_decay'],
                         device=device, verbose=True)
     
     embeddings = extract_embeddings(model, dataset, device=device)
@@ -303,7 +347,7 @@ def train_pattern_vocabulary_representation(rule_numbers: List[int],
     config = {
         'pattern_size': 3,
         'input_dim': 4,
-        'hidden_dims': [16, 8],
+        'hidden_dims': [32, 16],
         'latent_dim': 8,
         'batch_size': 16,
         'epochs': 200,
@@ -344,13 +388,14 @@ def train_evolution_representation(rule_numbers: List[int],
     config = {
         'width': 51,
         'steps': 50,
-        'n_ic_samples': 5,
+        'n_ic_samples': 32,
         'input_dim': 3,
-        'hidden_dims': [24, 12],
+        'hidden_dims': [64, 32],
         'latent_dim': 8,
         'batch_size': 16,
         'epochs': 300,
-        'learning_rate': 0.001
+        'learning_rate': 0.0005,
+        'weight_decay': 1e-4
     }
     
     dataset, ic_mapping = build_evolution_dataset(
@@ -370,6 +415,7 @@ def train_evolution_representation(rule_numbers: List[int],
     losses = train_model(model, dataset, epochs=config['epochs'],
                         batch_size=config['batch_size'],
                         learning_rate=config['learning_rate'],
+                        weight_decay=config['weight_decay'],
                         device=device, verbose=True)
     
     raw_embeddings = {}
@@ -405,13 +451,34 @@ def train_evolution_representation(rule_numbers: List[int],
 
 
 def main():
+    # 获取版本名（从环境变量或使用时间戳）
+    version_name = os.environ.get('VERSION_NAME', datetime.now().strftime('%Y%m%d_%H%M%S'))
     
-    output_dir = Path('../outputs/embeddings')
+    # 获取输出基础目录（从环境变量或使用默认路径）
+    if 'OUTPUT_BASE_DIR' in os.environ:
+        # 如果从环境变量获取，使用绝对路径
+        output_base = Path(os.environ['OUTPUT_BASE_DIR']).resolve()
+    else:
+        # 否则使用相对路径（相对于脚本位置）
+        script_dir = Path(__file__).parent
+        output_base = (script_dir / '../outputs/embeddings' / version_name).resolve()
+    
+    output_dir = output_base
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    # 确保使用 GPU（如果可用）
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     rule_numbers = sorted(list(WOLFRAM_CLASSES.keys()))
+    
+    print("=" * 50)
+    print(f"Training ECA Graph Embeddings")
+    print(f"Version: {version_name}")
+    print(f"Output Directory: {output_dir}")
     print(f"Training on {len(rule_numbers)} rules using {device}")
+    if device == 'cuda':
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"CUDA Version: {torch.version.cuda}")
+    print("=" * 50)
     
     results = {}
     
@@ -432,20 +499,33 @@ def main():
     )
     
     summary = {
+        'version': version_name,
         'rule_numbers': rule_numbers,
         'n_rules': len(rule_numbers),
         'device': device,
-        'representations': list(results.keys())
+        'representations': list(results.keys()),
+        'output_directory': str(output_dir),
+        'timestamp': datetime.now().isoformat()
     }
+    
+    # 添加 GPU 信息（如果使用 GPU）
+    if device == 'cuda':
+        summary['gpu_name'] = torch.cuda.get_device_name(0)
+        summary['cuda_version'] = torch.version.cuda
+        summary['gpu_memory'] = f"{torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB"
     
     with open(output_dir / 'training_summary.json', 'w') as f:
         json.dump(summary, f, indent=2)
     
-    print(f"\nResults saved to {output_dir}")
-    print("Embedding dimensions:")
+    print("\n" + "=" * 50)
+    print(f"Training completed successfully!")
+    print(f"Version: {version_name}")
+    print(f"Results saved to: {output_dir}")
+    print("\nEmbedding dimensions:")
     for name, emb_dict in results.items():
         sample_emb = next(iter(emb_dict.values()))
         print(f"  {name}: {len(rule_numbers)} rules x {len(sample_emb)} dims")
+    print("=" * 50)
 
 
 if __name__ == '__main__':

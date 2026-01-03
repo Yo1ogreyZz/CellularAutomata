@@ -1,29 +1,3 @@
-"""
-ECA-GNN: Graph Representation Learning for Elementary Cellular Automata
-========================================================================
-
-This package converts ECA rules into graph representations for GNN analysis.
-
-Main Components:
----------------
-- ECARule: Rule representation and evolution
-- TruthTableGraph: Fixed 8-node structure (static)
-- DependencyGraph: De Bruijn-style 4-node graph (static)
-- EvolutionGraph: Temporal dynamics graph (dynamic)
-- convert_rule: Main conversion function
-- batch_convert: Batch processing
-
-Quick Start:
------------
->>> from src import ECARule, TruthTableGraph, convert_rule
->>> # Method 1: Direct graph building
->>> rule = ECARule(110)
->>> graph = TruthTableGraph(rule)
->>> data = graph.build()
->>> # Method 2: Using convenience function
->>> results = convert_rule(110, methods=['truth_table'], verbose=True)
-"""
-
 # Core classes and functions from rule2graph
 from .rule2graph import (
     ECARule,
@@ -31,7 +5,8 @@ from .rule2graph import (
     DependencyGraph,
     EvolutionGraph,
     convert_rule,
-    batch_convert
+    batch_convert,
+    PatternVocabularyGraph
 )
 
 # Utilities
@@ -42,6 +17,10 @@ from .utils import (
     get_wolfram_class_name,
     get_rules_by_class,
     get_class_distribution,
+    get_canonical_rule,
+    get_equivalent_rules,
+    get_canonical_rules,
+    build_equivalence_classes,
     WOLFRAM_CLASSES,
     CLASS_TO_ID,
     ID_TO_CLASS,
@@ -109,4 +88,9 @@ __all__ = [
     'get_representative_rules',
     'get_test_rules',
     'compute_graph_statistics',
+
+    'get_canonical_rule',
+    'get_equivalent_rules', 
+    'get_canonical_rules',
+    'build_equivalence_classes',
 ]

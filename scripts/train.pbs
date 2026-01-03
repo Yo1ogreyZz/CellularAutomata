@@ -1,18 +1,42 @@
 #!/bin/bash
-#PBS -N eca_gnn_training
-#PBS -l select=1:ncpus=4:mem=16gb
+#PBS -N gnn
+#PBS -l select=1:ncpus=4:mem=16gb:ngpus=1
 #PBS -l walltime=12:00:00
 #PBS -j oe
-#PBS -o logs/eca_training_$PBS_JOBID.log
 
-cd $PBS_O_WORKDIR
+cd /home/users/nus/e1582377/5281/
 
-mkdir -p logs
+VERSION_NAME=${VERSION_NAME:-$(date +%Y%m%d_%H%M%S)}
+
+OUTPUT_BASE_DIR="/home/users/nus/e1582377/5281/outputs/${VERSION_NAME}"
+LOG_DIR="/home/users/nus/e1582377/5281/logs"
+
+mkdir -p "${OUTPUT_BASE_DIR}"
+
+LOG_FILE="${LOG_DIR}/training_${PBS_JOBID}_${VERSION_NAME}.log"
+
+exec > >(tee -a "${LOG_FILE}")
+exec 2>&1
 
 source ~/miniconda3/bin/activate eca
 
 cd scripts
 
+export VERSION_NAME
+export OUTPUT_BASE_DIR
+
+echo "=========================================="
+echo "Training ECA Graph Embeddings"
+echo "Version: ${VERSION_NAME}"
+echo "Job ID: ${PBS_JOBID}"
+echo "Output Directory: ${OUTPUT_BASE_DIR}"
+echo "Log File: ${LOG_FILE}"
+echo "Device: GPU (CUDA)"
+echo "=========================================="
+
 python -u train_embeddings.py
 
 conda deactivate
+
+echo "Training completed. Results saved to: ${OUTPUT_BASE_DIR}"
+echo "Log file: ${LOG_FILE}"
