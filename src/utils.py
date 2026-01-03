@@ -1,6 +1,4 @@
-"""
-Utility Functions for ECA-GNN
-"""
+"""Utility functions for ECA-GNN"""
 
 import numpy as np
 import pickle
@@ -14,13 +12,14 @@ try:
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
+    Data = None
 
 
-# Wolfram Classification
+
 WOLFRAM_CLASSES = {
     # Class I: Uniform (8 rules)
     0: 'I', 8: 'I', 32: 'I', 40: 'I', 128: 'I', 136: 'I', 160: 'I', 168: 'I',
-    
+
     # Class II: Periodic (65 rules)
     1: 'II', 2: 'II', 3: 'II', 4: 'II', 5: 'II', 6: 'II', 7: 'II', 9: 'II',
     10: 'II', 11: 'II', 12: 'II', 13: 'II', 14: 'II', 15: 'II', 19: 'II', 23: 'II',
@@ -31,11 +30,11 @@ WOLFRAM_CLASSES = {
     130: 'II', 132: 'II', 134: 'II', 138: 'II', 140: 'II', 142: 'II', 152: 'II',
     154: 'II', 156: 'II', 162: 'II', 164: 'II', 170: 'II', 172: 'II', 178: 'II',
     184: 'II', 200: 'II', 204: 'II', 232: 'II',
-    
+
     # Class III: Chaotic (11 rules)
     18: 'III', 22: 'III', 30: 'III', 45: 'III', 60: 'III', 90: 'III', 105: 'III',
     122: 'III', 126: 'III', 146: 'III', 150: 'III',
-    
+
     # Class IV: Complex (4 rules)
     41: 'IV', 54: 'IV', 106: 'IV', 110: 'IV'
 }
@@ -50,7 +49,35 @@ CLASS_NAMES = {
     'IV': 'Class IV (Complex)'
 }
 
-# Controversial Rules Database
+
+def get_wolfram_class(rule_number: int) -> str:
+    return WOLFRAM_CLASSES.get(rule_number, 'II')
+
+
+def get_wolfram_class_id(rule_number: int) -> int:
+    class_label = get_wolfram_class(rule_number)
+    return CLASS_TO_ID[class_label]
+
+
+def get_wolfram_class_name(rule_number: int) -> str:
+    class_label = get_wolfram_class(rule_number)
+    return CLASS_NAMES[class_label]
+
+
+def get_rules_by_class() -> Dict[str, List[int]]:
+    result = {'I': [], 'II': [], 'III': [], 'IV': []}
+    for rule in range(256):
+        label = get_wolfram_class(rule)
+        result[label].append(rule)
+    return result
+
+
+def get_class_distribution() -> Dict[str, int]:
+    classes = get_rules_by_class()
+    return {label: len(rules) for label, rules in classes.items()}
+
+
+
 CONTROVERSIAL_RULES = {
     18: {
         'wolfram_label': 'III',
@@ -79,7 +106,7 @@ CONTROVERSIAL_RULES = {
     110: {
         'wolfram_label': 'IV',
         'disputed_as': [],
-        'reason': 'Turing-complete proven but extremely rich dynamics make classification difficult',
+        'reason': 'Turing-complete proven but extremely rich dynamics',
         'priority': 'medium'
     },
     126: {
@@ -88,42 +115,16 @@ CONTROVERSIAL_RULES = {
         'reason': 'Hybrid of Classes 2/3/4: complex but not strictly chaotic',
         'priority': 'medium'
     },
+    224: {
+        'wolfram_label': 'INCONSISTENT',
+        'disputed_as': ['multiple'],
+        'reason': 'Literature shows contradictory classifications',
+        'priority': 'high'
+    }
 }
 
 
-def get_wolfram_class(rule_number: int) -> str:
-    """Get Wolfram class label ('I', 'II', 'III', 'IV') for a rule."""
-    return WOLFRAM_CLASSES.get(rule_number, 'II')
-
-
-def get_wolfram_class_id(rule_number: int) -> int:
-    """Get integer class ID (0-3) for a rule."""
-    return CLASS_TO_ID[get_wolfram_class(rule_number)]
-
-
-def get_wolfram_class_name(rule_number: int) -> str:
-    """Get human-readable class name for a rule."""
-    label = get_wolfram_class(rule_number)
-    return CLASS_NAMES[label]
-
-
-def get_rules_by_class() -> Dict[str, List[int]]:
-    """Get all 256 rules grouped by class label."""
-    result = {'I': [], 'II': [], 'III': [], 'IV': []}
-    for rule in range(256):
-        label = get_wolfram_class(rule)
-        result[label].append(rule)
-    return result
-
-
-def get_class_distribution() -> Dict[str, int]:
-    """Get the count of rules in each Wolfram class."""
-    classes = get_rules_by_class()
-    return {label: len(rules) for label, rules in classes.items()}
-
-
 def get_controversial_rules(priority: Optional[str] = None) -> List[int]:
-    """Get list of controversial rules."""
     if priority:
         return [r for r, info in CONTROVERSIAL_RULES.items() 
                 if info['priority'] == priority]
@@ -131,18 +132,19 @@ def get_controversial_rules(priority: Optional[str] = None) -> List[int]:
 
 
 def is_controversial(rule_number: int) -> bool:
-    """Check if a rule is controversial."""
+    """Check if a rule is controversial"""
     return rule_number in CONTROVERSIAL_RULES
 
 
 def get_controversy_info(rule_number: int) -> Optional[Dict]:
-    """Get controversy information for a rule."""
+    """Get controversy information for a rule"""
     return CONTROVERSIAL_RULES.get(rule_number)
 
 
-# Data I/O
-def save_graph_data(graph_data: Dict, filepath: Union[str, Path], format: str = 'pickle') -> None:
-    """Save graph data to file."""
+
+def save_graph_data(graph_data: Dict, 
+                   filepath: Union[str, Path], 
+                   format: str = 'pickle') -> None:
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
     
@@ -154,11 +156,11 @@ def save_graph_data(graph_data: Dict, filepath: Union[str, Path], format: str = 
         with open(filepath, 'w') as f:
             json.dump(json_data, f, indent=2)
     else:
-        raise ValueError(f"Unknown format: {format}")
+        raise ValueError(f"Unknown format: {format}. Use 'pickle' or 'json'")
 
 
-def load_graph_data(filepath: Union[str, Path], format: str = 'pickle') -> Dict:
-    """Load graph data from file."""
+def load_graph_data(filepath: Union[str, Path], 
+                   format: str = 'pickle') -> Dict:
     filepath = Path(filepath)
     if not filepath.exists():
         raise FileNotFoundError(f"File not found: {filepath}")
@@ -171,11 +173,11 @@ def load_graph_data(filepath: Union[str, Path], format: str = 'pickle') -> Dict:
             json_data = json.load(f)
         return _restore_from_json(json_data)
     else:
-        raise ValueError(f"Unknown format: {format}")
+        raise ValueError(f"Unknown format: {format}. Use 'pickle' or 'json'")
 
 
 def _prepare_for_json(data: Dict) -> Dict:
-    """Convert numpy arrays to lists for JSON serialization."""
+    """Convert numpy arrays to lists for JSON serialization"""
     result = {}
     for key, value in data.items():
         if isinstance(value, np.ndarray):
@@ -191,29 +193,30 @@ def _prepare_for_json(data: Dict) -> Dict:
 
 
 def _restore_from_json(data: Dict) -> Dict:
-    """Convert lists back to numpy arrays after JSON loading."""
+    """Convert lists back to numpy arrays after JSON loading"""
     result = {}
     for key, value in data.items():
-        if key in ['node_features', 'edge_features']:
+        if key in ['node_features', 'edge_features', 'spacetime']:
             result[key] = np.array(value)
         else:
             result[key] = value
     return result
 
 
-# PyTorch Geometric Conversion
+
 def to_pyg_data(graph_data: Dict) -> 'Data':
-    """Convert graph dictionary to PyTorch Geometric Data object."""
     if not TORCH_AVAILABLE:
-        raise ImportError("PyTorch Geometric is required")
+        raise ImportError(
+            "PyTorch Geometric is required. Install with:\n"
+            "  pip install torch torch-geometric"
+        )
     
     x = torch.tensor(graph_data['node_features'], dtype=torch.float)
-    
     edge_list = graph_data['edges']
     edge_index = torch.tensor(edge_list, dtype=torch.long).t().contiguous()
     
     edge_attr = None
-    if 'edge_features' in graph_data:
+    if 'edge_features' in graph_data and graph_data['edge_features'] is not None:
         edge_attr = torch.tensor(graph_data['edge_features'], dtype=torch.float)
     
     rule_number = graph_data['rule_number']
@@ -229,3 +232,179 @@ def to_pyg_data(graph_data: Dict) -> 'Data':
     )
     
     return data
+
+
+def batch_to_pyg_dataset(graph_dict_list: List[Dict], 
+                         save_dir: Optional[Union[str, Path]] = None) -> List['Data']:
+    if not TORCH_AVAILABLE:
+        raise ImportError(
+            "PyTorch Geometric is required. Install with:\n"
+            "  pip install torch torch-geometric"
+        )
+    
+    dataset = []
+    for graph_data in graph_dict_list:
+        pyg_data = to_pyg_data(graph_data)
+        dataset.append(pyg_data)
+        
+        if save_dir is not None:
+            save_dir = Path(save_dir)
+            save_dir.mkdir(parents=True, exist_ok=True)
+            rule_num = graph_data['rule_number']
+            graph_type = graph_data['graph_type']
+            filename = f"rule_{rule_num}_{graph_type}.pt"
+            torch.save(pyg_data, save_dir / filename)
+    
+    return dataset
+
+
+
+def get_representative_rules() -> Dict[str, List[int]]:
+    """Get representative rules for each Wolfram class"""
+    return {
+        'I': [0, 8, 32, 136, 160],
+        'II': [4, 37, 51, 108, 184, 232],
+        'III': [18, 22, 30, 45, 126, 150],
+        'IV': [41, 54, 106, 110]
+    }
+
+
+def get_test_rules() -> List[int]:
+    """Get one test rule from each class"""
+    return [0, 4, 30, 110]  # [I, II, III, IV]
+
+
+def compute_graph_statistics(graph_data: Dict) -> Dict:
+    num_nodes = len(graph_data['nodes'])
+    num_edges = len(graph_data['edges'])
+    avg_degree = num_edges / num_nodes if num_nodes > 0 else 0
+    
+    node_features = graph_data['node_features']
+    feature_dim = node_features.shape[1]
+    feature_mean = node_features.mean(axis=0)
+    feature_std = node_features.std(axis=0)
+    
+    return {
+        'num_nodes': num_nodes,
+        'num_edges': num_edges,
+        'avg_degree': avg_degree,
+        'feature_dim': feature_dim,
+        'feature_mean': feature_mean.tolist(),
+        'feature_std': feature_std.tolist(),
+        'graph_type': graph_data['graph_type'],
+        'rule_number': graph_data['rule_number']
+    }
+
+
+# Quick test
+if __name__ == "__main__":
+    print("Testing utils module...")
+    
+    # Test classification functions
+    print(f"\nRule 30: {get_wolfram_class_name(30)}")
+    print(f"Rule 110: {get_wolfram_class_name(110)}")
+    
+    # Test class distribution
+    dist = get_class_distribution()
+    print(f"\nClass distribution: {dist}")
+    print(f"Total rules: {sum(dist.values())}")
+    
+    # Test controversial rules
+    print(f"\nHigh priority controversial rules: {get_controversial_rules('high')}")
+    print(f"Rule 54 controversial: {is_controversial(54)}")
+    if is_controversial(54):
+        info = get_controversy_info(54)
+        print(f"  Reason: {info['reason']}")
+
+
+
+def reflect_rule(rule: int) -> int:
+    """Mirror reflection of rule"""
+    lookup = format(rule, '08b')[::-1]
+    new_lookup = ['0'] * 8
+    
+    for i in range(8):
+        left = (i >> 2) & 1
+        center = (i >> 1) & 1
+        right = i & 1
+        
+        mirrored_idx = (right << 2) | (center << 1) | left
+        new_lookup[mirrored_idx] = lookup[i]
+    
+    return int(''.join(new_lookup[::-1]), 2)
+
+
+def complement_rule(rule: int) -> int:
+    """Bit complement of rule"""
+    lookup = format(rule, '08b')[::-1]
+    new_lookup = ['0'] * 8
+    
+    for i in range(8):
+        left = (i >> 2) & 1
+        center = (i >> 1) & 1
+        right = i & 1
+        
+        comp_idx = ((1-left) << 2) | ((1-center) << 1) | (1-right)
+        new_lookup[comp_idx] = '1' if lookup[i] == '0' else '0'
+    
+    return int(''.join(new_lookup[::-1]), 2)
+
+
+def get_equivalent_rules(rule: int) -> set:
+    """Get all symmetric equivalents of a rule"""
+    equivalents = {rule}
+    
+    reflected = reflect_rule(rule)
+    equivalents.add(reflected)
+    
+    complemented = complement_rule(rule)
+    equivalents.add(complemented)
+    
+    reflected_comp = reflect_rule(complemented)
+    equivalents.add(reflected_comp)
+    
+    return equivalents
+
+
+def get_canonical_rule(rule: int) -> int:
+    """Get canonical representative of equivalence class"""
+    equivalents = get_equivalent_rules(rule)
+    return min(equivalents)
+
+
+def build_equivalence_classes() -> Dict[int, set]:
+    """Build all equivalence classes for 256 rules"""
+    classes = {}
+    processed = set()
+    
+    for rule in range(256):
+        if rule in processed:
+            continue
+        
+        canonical = get_canonical_rule(rule)
+        equiv_set = get_equivalent_rules(rule)
+        
+        classes[canonical] = equiv_set
+        processed.update(equiv_set)
+    
+    return classes
+
+
+def get_canonical_rules() -> List[int]:
+    """Get list of canonical rules (88 total)"""
+    classes = build_equivalence_classes()
+    return sorted(list(classes.keys()))
+
+
+def validate_symmetry() -> bool:
+    """Validate that we get exactly 88 equivalence classes"""
+    classes = build_equivalence_classes()
+    n_classes = len(classes)
+    total_rules = sum(len(equiv_set) for equiv_set in classes.values())
+    
+    assert n_classes == 88, f"Expected 88 classes, got {n_classes}"
+    assert total_rules == 256, f"Expected 256 total rules, got {total_rules}"
+    
+    print(f"Validation passed: {n_classes} equivalence classes covering {total_rules} rules")
+    return True
+    

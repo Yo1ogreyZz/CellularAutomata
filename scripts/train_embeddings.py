@@ -1,14 +1,4 @@
-"""
-Training Script for Three Graph Representations
-==============================================
-
-Trains GNN autoencoders on:
-1. Truth-Table graphs (static)
-2. Dependency graphs (static)  
-3. Evolution graphs (dynamic with IC control)
-
-Outputs: embeddings for all 88 rules in each representation
-"""
+"""Training script for ECA graph embeddings"""
 
 import numpy as np
 import torch
@@ -23,12 +13,11 @@ from typing import List, Dict, Tuple
 import sys
 
 sys.path.append('..')
-from src.rule2graph import ECARule, TruthTableGraph, DependencyGraph, EvolutionGraph
+from src.rule2graph import ECARule, TruthTableGraph, DependencyGraph, EvolutionGraph, PatternVocabularyGraph
 from src.utils import WOLFRAM_CLASSES, to_pyg_data
 
 
 class GraphAutoencoder(nn.Module):
-    """Graph Autoencoder for learning rule embeddings"""
     
     def __init__(self, input_dim: int, hidden_dims: List[int], latent_dim: int):
         super().__init__()
@@ -36,14 +25,12 @@ class GraphAutoencoder(nn.Module):
         self.input_dim = input_dim
         self.latent_dim = latent_dim
         
-        # Encoder: GCN layers
         layers = []
         dims = [input_dim] + hidden_dims + [latent_dim]
         for i in range(len(dims) - 1):
             layers.append(GCNConv(dims[i], dims[i+1]))
         self.encoder_layers = nn.ModuleList(layers)
         
-        # Decoder: MLP to reconstruct node features
         decoder_dims = [latent_dim] + hidden_dims[::-1] + [input_dim]
         decoder_layers = []
         for i in range(len(decoder_dims) - 1):
@@ -51,7 +38,6 @@ class GraphAutoencoder(nn.Module):
         self.decoder_layers = nn.ModuleList(decoder_layers)
     
     def encode(self, data: Data) -> torch.Tensor:
-        """Encode graph to latent representation"""
         x, edge_index = data.x, data.edge_index
         
         for i, layer in enumerate(self.encoder_layers):
@@ -59,14 +45,12 @@ class GraphAutoencoder(nn.Module):
             if i < len(self.encoder_layers) - 1:
                 x = F.relu(x)
         
-        # Global pooling to get graph-level embedding
         batch = data.batch if hasattr(data, 'batch') else torch.zeros(x.size(0), dtype=torch.long, device=x.device)
         embedding = global_mean_pool(x, batch)
         
         return embedding
     
     def decode(self, z: torch.Tensor, num_nodes: int) -> torch.Tensor:
-        """Decode latent to node features"""
         z_expanded = z.repeat(num_nodes, 1)
         
         x = z_expanded
@@ -78,14 +62,12 @@ class GraphAutoencoder(nn.Module):
         return x
     
     def forward(self, data: Data) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Forward pass: encode then decode"""
         z = self.encode(data)
         x_recon = self.decode(z, data.x.size(0))
         return z, x_recon
 
 
 def build_truth_table_dataset(rule_numbers: List[int]) -> List[Data]:
-    """Build dataset for truth-table graphs"""
     dataset = []
     
     for rule_num in rule_numbers:
@@ -101,7 +83,6 @@ def build_truth_table_dataset(rule_numbers: List[int]) -> List[Data]:
 
 
 def build_dependency_dataset(rule_numbers: List[int]) -> List[Data]:
-    """Build dataset for dependency graphs"""
     dataset = []
     
     for rule_num in rule_numbers:
@@ -116,23 +97,25 @@ def build_dependency_dataset(rule_numbers: List[int]) -> List[Data]:
     return dataset
 
 
+def build_pattern_vocabulary_dataset(rule_numbers: List[int], pattern_size: int = 3) -> List[Data]:
+    dataset = []
+    
+    for rule_num in rule_numbers:
+        rule = ECARule(rule_num)
+        graph_builder = PatternVocabularyGraph(rule, pattern_size=pattern_size)
+        graph_data = graph_builder.build()
+        
+        pyg_data = to_pyg_data(graph_data)
+        pyg_data.rule_number = torch.tensor([rule_num])
+        dataset.append(pyg_data)
+    
+    return dataset
+
+
 def build_evolution_dataset(rule_numbers: List[int],
                             width: int = 51,
-                            steps: int = 20,
+                            steps: int = 50,
                             n_ic_samples: int = 5) -> Tuple[List[Data], Dict]:
-    """
-    Build dataset for evolution graphs with multiple initial conditions
-    
-    Args:
-        rule_numbers: List of rule numbers
-        width: Number of cells
-        steps: Number of time steps
-        n_ic_samples: Number of different initial conditions per rule
-    
-    Returns:
-        dataset: List of PyG Data objects
-        ic_mapping: Dict mapping rule_number -> list of sample indices
-    """
     dataset = []
     ic_mapping = {}
     
@@ -171,12 +154,6 @@ def train_model(model: nn.Module,
                 learning_rate: float = 0.001,
                 device: str = 'cpu',
                 verbose: bool = True) -> List[float]:
-    """
-    Train the autoencoder model
-    
-    Returns:
-        losses: List of training losses per epoch
-    """
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
@@ -212,12 +189,6 @@ def train_model(model: nn.Module,
 def extract_embeddings(model: nn.Module,
                       dataset: List[Data],
                       device: str = 'cpu') -> Dict[int, np.ndarray]:
-    """
-    Extract embeddings for all samples
-    
-    Returns:
-        embeddings: Dict mapping rule_number -> embedding array
-    """
     model = model.to(device)
     model.eval()
     
@@ -239,17 +210,10 @@ def extract_embeddings(model: nn.Module,
 def train_truth_table_representation(rule_numbers: List[int],
                                      output_dir: Path,
                                      device: str = 'cpu') -> Dict:
-    """Train Truth-Table graph representation"""
-    print("\n" + "="*60)
-    print("Training Truth-Table Representation")
-    print("="*60)
-    
-    # Build dataset
-    print("Building truth-table graphs...")
+    print("\nTraining truth-table representation...")
     dataset = build_truth_table_dataset(rule_numbers)
-    print(f"  Created {len(dataset)} graphs")
+    print(f"Built {len(dataset)} graphs")
     
-    # Model configuration
     config = {
         'input_dim': 4,
         'hidden_dims': [32, 16],
@@ -259,29 +223,19 @@ def train_truth_table_representation(rule_numbers: List[int],
         'learning_rate': 0.001
     }
     
-    # Create model
     model = GraphAutoencoder(
         input_dim=config['input_dim'],
         hidden_dims=config['hidden_dims'],
         latent_dim=config['latent_dim']
     )
     
-    # Train
-    print("Training model...")
-    losses = train_model(
-        model, dataset,
-        epochs=config['epochs'],
-        batch_size=config['batch_size'],
-        learning_rate=config['learning_rate'],
-        device=device,
-        verbose=True
-    )
+    losses = train_model(model, dataset, epochs=config['epochs'],
+                        batch_size=config['batch_size'],
+                        learning_rate=config['learning_rate'],
+                        device=device, verbose=True)
     
-    # Extract embeddings
-    print("Extracting embeddings...")
     embeddings = extract_embeddings(model, dataset, device=device)
     
-    # Save results
     output_file = output_dir / 'truth_table_embeddings.pkl'
     with open(output_file, 'wb') as f:
         pickle.dump({
@@ -291,8 +245,7 @@ def train_truth_table_representation(rule_numbers: List[int],
             'model_state': model.state_dict()
         }, f)
     
-    print(f"Saved to {output_file}")
-    print(f"Final loss: {losses[-1]:.6f}")
+    print(f"Saved to {output_file}, final loss: {losses[-1]:.6f}")
     
     return embeddings
 
@@ -300,17 +253,10 @@ def train_truth_table_representation(rule_numbers: List[int],
 def train_dependency_representation(rule_numbers: List[int],
                                    output_dir: Path,
                                    device: str = 'cpu') -> Dict:
-    """Train Dependency graph representation"""
-    print("\n" + "="*60)
-    print("Training Dependency Representation")
-    print("="*60)
-    
-    # Build dataset
-    print("Building dependency graphs...")
+    print("\nTraining dependency representation...")
     dataset = build_dependency_dataset(rule_numbers)
-    print(f"  Created {len(dataset)} graphs")
+    print(f"Built {len(dataset)} graphs")
     
-    # Model configuration
     config = {
         'input_dim': 2,
         'hidden_dims': [16, 8],
@@ -320,29 +266,19 @@ def train_dependency_representation(rule_numbers: List[int],
         'learning_rate': 0.001
     }
     
-    # Create model
     model = GraphAutoencoder(
         input_dim=config['input_dim'],
         hidden_dims=config['hidden_dims'],
         latent_dim=config['latent_dim']
     )
     
-    # Train
-    print("Training model...")
-    losses = train_model(
-        model, dataset,
-        epochs=config['epochs'],
-        batch_size=config['batch_size'],
-        learning_rate=config['learning_rate'],
-        device=device,
-        verbose=True
-    )
+    losses = train_model(model, dataset, epochs=config['epochs'],
+                        batch_size=config['batch_size'],
+                        learning_rate=config['learning_rate'],
+                        device=device, verbose=True)
     
-    # Extract embeddings
-    print("Extracting embeddings...")
     embeddings = extract_embeddings(model, dataset, device=device)
     
-    # Save results
     output_file = output_dir / 'dependency_embeddings.pkl'
     with open(output_file, 'wb') as f:
         pickle.dump({
@@ -352,8 +288,51 @@ def train_dependency_representation(rule_numbers: List[int],
             'model_state': model.state_dict()
         }, f)
     
-    print(f"Saved to {output_file}")
-    print(f"Final loss: {losses[-1]:.6f}")
+    print(f"Saved to {output_file}, final loss: {losses[-1]:.6f}")
+    
+    return embeddings
+
+
+def train_pattern_vocabulary_representation(rule_numbers: List[int],
+                                           output_dir: Path,
+                                           device: str = 'cpu') -> Dict:
+    print("\nTraining pattern vocabulary representation...")
+    dataset = build_pattern_vocabulary_dataset(rule_numbers, pattern_size=3)
+    print(f"Built {len(dataset)} graphs")
+    
+    config = {
+        'pattern_size': 3,
+        'input_dim': 4,
+        'hidden_dims': [16, 8],
+        'latent_dim': 8,
+        'batch_size': 16,
+        'epochs': 200,
+        'learning_rate': 0.001
+    }
+    
+    model = GraphAutoencoder(
+        input_dim=config['input_dim'],
+        hidden_dims=config['hidden_dims'],
+        latent_dim=config['latent_dim']
+    )
+    
+    losses = train_model(model, dataset, epochs=config['epochs'],
+                        batch_size=config['batch_size'],
+                        learning_rate=config['learning_rate'],
+                        device=device, verbose=True)
+    
+    embeddings = extract_embeddings(model, dataset, device=device)
+    
+    output_file = output_dir / 'pattern_vocabulary_embeddings.pkl'
+    with open(output_file, 'wb') as f:
+        pickle.dump({
+            'embeddings': embeddings,
+            'config': config,
+            'losses': losses,
+            'model_state': model.state_dict()
+        }, f)
+    
+    print(f"Saved to {output_file}, final loss: {losses[-1]:.6f}")
     
     return embeddings
 
@@ -361,16 +340,10 @@ def train_dependency_representation(rule_numbers: List[int],
 def train_evolution_representation(rule_numbers: List[int],
                                   output_dir: Path,
                                   device: str = 'cpu') -> Dict:
-    """Train Evolution graph representation with IC control"""
-    print("\n" + "="*60)
-    print("Training Evolution Representation (with IC control)")
-    print("="*60)
-    
-    # Build dataset with multiple ICs
-    print("Building evolution graphs with multiple ICs...")
+    print("\nTraining evolution representation...")
     config = {
         'width': 51,
-        'steps': 20,
+        'steps': 50,
         'n_ic_samples': 5,
         'input_dim': 3,
         'hidden_dims': [24, 12],
@@ -386,28 +359,19 @@ def train_evolution_representation(rule_numbers: List[int],
         steps=config['steps'],
         n_ic_samples=config['n_ic_samples']
     )
-    print(f"  Created {len(dataset)} graphs ({len(rule_numbers)} rules x {config['n_ic_samples']} ICs)")
+    print(f"Built {len(dataset)} graphs ({len(rule_numbers)} rules x {config['n_ic_samples']} ICs)")
     
-    # Create model
     model = GraphAutoencoder(
         input_dim=config['input_dim'],
         hidden_dims=config['hidden_dims'],
         latent_dim=config['latent_dim']
     )
     
-    # Train on all IC samples
-    print("Training model on all IC samples...")
-    losses = train_model(
-        model, dataset,
-        epochs=config['epochs'],
-        batch_size=config['batch_size'],
-        learning_rate=config['learning_rate'],
-        device=device,
-        verbose=True
-    )
+    losses = train_model(model, dataset, epochs=config['epochs'],
+                        batch_size=config['batch_size'],
+                        learning_rate=config['learning_rate'],
+                        device=device, verbose=True)
     
-    # Extract raw embeddings (one per IC sample)
-    print("Extracting embeddings...")
     raw_embeddings = {}
     model.eval()
     with torch.no_grad():
@@ -415,19 +379,19 @@ def train_evolution_representation(rule_numbers: List[int],
             data = data.to(device)
             z = model.encode(data)
             raw_embeddings[i] = z.cpu().numpy().flatten()
+    aggregated_embeddings_mean = {}
+    aggregated_embeddings_std = {}
     
-    # Aggregate embeddings by rule (mean pooling across ICs)
-    print("Aggregating embeddings across ICs...")
-    aggregated_embeddings = {}
     for rule_num, sample_indices in ic_mapping.items():
-        ic_embs = [raw_embeddings[idx] for idx in sample_indices]
-        aggregated_embeddings[rule_num] = np.mean(ic_embs, axis=0)
+        ic_embs = np.array([raw_embeddings[idx] for idx in sample_indices])
+        aggregated_embeddings_mean[rule_num] = np.mean(ic_embs, axis=0)
+        aggregated_embeddings_std[rule_num] = np.std(ic_embs, axis=0)
     
-    # Save results
     output_file = output_dir / 'evolution_embeddings.pkl'
     with open(output_file, 'wb') as f:
         pickle.dump({
-            'embeddings': aggregated_embeddings,
+            'embeddings_mean': aggregated_embeddings_mean,
+            'embeddings_std': aggregated_embeddings_std,
             'raw_embeddings': raw_embeddings,
             'ic_mapping': ic_mapping,
             'config': config,
@@ -435,46 +399,38 @@ def train_evolution_representation(rule_numbers: List[int],
             'model_state': model.state_dict()
         }, f)
     
-    print(f"Saved to {output_file}")
-    print(f"Final loss: {losses[-1]:.6f}")
+    print(f"Saved to {output_file}, final loss: {losses[-1]:.6f}")
     
-    return aggregated_embeddings
+    return aggregated_embeddings_mean
 
 
 def main():
-    """Main training pipeline"""
     
-    # Setup
     output_dir = Path('../outputs/embeddings')
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Check for GPU
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Using device: {device}")
-    
-    # Get all 88 classified rules
     rule_numbers = sorted(list(WOLFRAM_CLASSES.keys()))
-    print(f"Training on {len(rule_numbers)} rules")
+    print(f"Training on {len(rule_numbers)} rules using {device}")
     
-    # Train all three representations
     results = {}
     
-    # 1. Truth-Table
     results['truth_table'] = train_truth_table_representation(
         rule_numbers, output_dir, device
     )
     
-    # 2. Dependency
     results['dependency'] = train_dependency_representation(
         rule_numbers, output_dir, device
     )
     
-    # 3. Evolution
+    results['pattern_vocabulary'] = train_pattern_vocabulary_representation(
+        rule_numbers, output_dir, device
+    )
+    
     results['evolution'] = train_evolution_representation(
         rule_numbers, output_dir, device
     )
     
-    # Save summary
     summary = {
         'rule_numbers': rule_numbers,
         'n_rules': len(rule_numbers),
@@ -485,19 +441,11 @@ def main():
     with open(output_dir / 'training_summary.json', 'w') as f:
         json.dump(summary, f, indent=2)
     
-    print(f"\n{'='*60}")
-    print(f"Results saved to: {output_dir}")
-    print("\nGenerated files:")
-    print("  - truth_table_embeddings.pkl")
-    print("  - dependency_embeddings.pkl")
-    print("  - evolution_embeddings.pkl")
-    print("  - training_summary.json")
-    
-    print("\nEmbedding dimensions:")
+    print(f"\nResults saved to {output_dir}")
+    print("Embedding dimensions:")
     for name, emb_dict in results.items():
         sample_emb = next(iter(emb_dict.values()))
         print(f"  {name}: {len(rule_numbers)} rules x {len(sample_emb)} dims")
-    print("="*60)
 
 
 if __name__ == '__main__':

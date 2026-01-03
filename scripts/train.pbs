@@ -3,16 +3,16 @@
 #PBS -l select=1:ncpus=4:mem=16gb
 #PBS -l walltime=12:00:00
 #PBS -j oe
-#PBS -o $HOME/eca_training.log
+#PBS -o logs/eca_training_$PBS_JOBID.log
 
-cd $PBS_O_WORKDIR/scripts
+cd $PBS_O_WORKDIR
+
+mkdir -p logs
 
 source ~/miniconda3/bin/activate eca
 
-echo "Starting GNN training for three representations..."
-echo "Date: $(date)"
-echo "Node: $(hostname)"
+cd scripts
 
-python train_embeddings.py 
+python -u train_embeddings.py
 
-echo "Training completed at: $(date)"
+conda deactivate

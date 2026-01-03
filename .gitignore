@@ -216,3 +216,6 @@ results/
 logs/
 
 requirements.txt
+
+outputs/
+notebooks/
