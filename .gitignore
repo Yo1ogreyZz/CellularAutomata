@@ -2,6 +2,7 @@ data/
 run_scripts/
 notebooks/
 logs/
+archive/
 
 __pycache__/
 *.py[cod]

@@ -1,72 +1,78 @@
-"""
-Feature Descriptions for Cellular Automata Analysis
-===================================================
+'''
+This performs 'Dimensionality Reduction' via UMAP.
+It takes the 9-dimensional 'Phase Space' of our CA rules and projects it 
+onto a 2D 'Manifold' while preserving the local and global topology.
 
-This script uses the following features extracted from CA evolution:
+In physics, this is analogous to projecting a high-dimensional state space 
+onto a lower-dimensional visualization plane to observe clusters, 
+trajectories, or 'islands' of similar dynamical behavior (e.g., separating 
 
-rho_mean
-    Average fraction of cells in state 1 (overall density of "active" cells).
-    - Closer to 0: mostly 0s
-    - Closer to 1: mostly 1s
+'''
 
-rho_std
-    Standard deviation of density over time (temporal fluctuation).
-    - Small value: density remains roughly constant
-    - Large value: density changes significantly over time
-
-flip_rate
-    Average fraction of cells that change state between two consecutive time steps.
-    - Higher values: pattern is very "busy", many cells switching states
-    - Lower values: pattern is more stable
-
-autocorr_t1
-    Lag-1 temporal autocorrelation (similarity between consecutive time steps).
-    - High value: pattern at t+1 is very similar to t (persistent, slowly evolving)
-    - Low/negative value: pattern changes strongly between steps
-
-H3
-    Spatial block entropy based on 3-cell blocks (pattern complexity measure).
-    - Higher values: more complex and less regular patterns
-    - Lower values: more repetitive and structured patterns
-
-Summary
--------
-Together, these features capture:
-- Average system state (rho_mean)
-- Temporal stability/oscillation (rho_std + autocorr_t1)
-- Local activity (flip_rate)
-- Structural complexity (H3)
-"""
-
+import os
 import pandas as pd
 import umap
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
 
+# Configuration
+INPUT_PATH = "data/features/cheap_features.csv"
+OUTPUT_CSV = "data/embeddings/features_with_umap.csv"
+FIGURE_OUT = "data/figures/umap.png"
 
-df = pd.read_csv("data/features/cheap_features.csv")
-
-
-feature_cols = [
-    "rho_mean",
-    "rho_std",
-    "flip_rate",
-    "autocorr_t1",
-    "H3",
+FEATURE_COLS = [
+    "rho_mean", "rho_std", "flip_rate", "autocorr_t1",
+    "space_autocorr", "h3_global", "space_entropy_mean",
+    "activity_tail", "is_fixedpoint"
 ]
 
+def main():
+    if not os.path.exists(INPUT_PATH):
+        raise FileNotFoundError(f"Source feature file not found at {INPUT_PATH}")
 
-X = df[feature_cols].values
+    df = pd.read_csv(INPUT_PATH)
+    x_raw = df[FEATURE_COLS].values
 
-reducer = umap.UMAP(
-    n_neighbors=20,
-    min_dist=0.1,
-    n_jobs=-1
-)
-Z = reducer.fit_transform(X)
+    # Data standardization is critical for manifold learning
+    scaler = StandardScaler()
+    x_scaled = scaler.fit_transform(x_raw)
 
-plt.figure(figsize=(6, 5))
-plt.scatter(Z[:, 0], Z[:, 1], s=5, alpha=0.7)
-plt.title("UMAP of r=2 CA (cheap features)")
-plt.tight_layout()
-plt.savefig("data/figures/umap_cheap.png", dpi=200)
-plt.show()
+    # Initialize UMAP with conservative parameters for stable embedding
+    reducer = umap.UMAP(
+        n_neighbors=25,
+        min_dist=0.15,
+        metric='euclidean',
+        random_state=42,
+        n_jobs=-1
+    )
+
+    print(f"Projecting {len(df)} rules into 2D manifold...")
+    embedding = reducer.fit_transform(x_scaled)
+
+    # Attach embeddings to the dataframe
+    df["umap_1"] = embedding[:, 0]
+    df["umap_2"] = embedding[:, 1]
+
+    # Persistent storage
+    os.makedirs(os.path.dirname(OUTPUT_CSV), exist_ok=True)
+    df.to_csv(OUTPUT_CSV, index=False)
+    
+    # Visual validation
+    os.makedirs(os.path.dirname(FIGURE_OUT), exist_ok=True)
+    plt.figure(figsize=(12, 10))
+    plt.scatter(
+        df["umap_1"], 
+        df["umap_2"], 
+        s=1, 
+        c=df["h3_global"], 
+        cmap='magma', 
+        alpha=0.6
+    )
+    plt.colorbar(label='H3 Global Entropy')
+    plt.title("UMAP Manifold Projection of r=2 CA Rules")
+    plt.tight_layout()
+    plt.savefig(FIGURE_OUT, dpi=300)
+    print(f"Process complete. Embedding saved to {OUTPUT_CSV}")
+
+if __name__ == "__main__":
+    main()

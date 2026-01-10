@@ -1,5 +1,5 @@
 import numpy as np
-from ca.rules import rule_id_to_table
+from .rules import rule_id_to_table
 
 
 def evolve_ca_r2(rule_id, init_state, steps):
