@@ -5,28 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ad846c70-7f96-4992-8fd2-4885e64e00c0" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/dbg/build_dbg_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dbg/dbg_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dbg/eca_dbg.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/demo.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dependency_graph/build_dependency_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dependency_graph/dependency_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dependency_graph/eca_dependency.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lattice_graph/build_lattice_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lattice_graph/eca_lattice.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lattice_graph/lattice_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pair_graph/build_pair_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pair_graph/eca_pair.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pair_graph/pair_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/stg/build_stg_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/stg/eca_stg.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/stg/stg_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/subset_graph/build_subset_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/subset_graph/eca_subset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/subset_graph/subset_dataset.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/eca_gnn/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/eca_gnn/normalized_mutual_info_classif.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -64,34 +43,34 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.build_dbg_dataset.executor": "Run",
-    "Python.build_dependency_dataset.executor": "Run",
-    "Python.build_lattice_dataset.executor": "Run",
-    "Python.build_pair_dataset.executor": "Run",
-    "Python.build_stg_dataset.executor": "Run",
-    "Python.build_subset_dataset.executor": "Run",
-    "Python.dbg_builder.executor": "Run",
-    "Python.eca_stg.executor": "Run",
-    "Python.generate.executor": "Run",
-    "Python.test.executor": "Run",
-    "Python.view.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "winter__vacation__geoffrey",
-    "junie.onboarding.icon.badge.shown": "true",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.build_dbg_dataset.executor&quot;: &quot;Run&quot;,
+    &quot;Python.build_dependency_dataset.executor&quot;: &quot;Run&quot;,
+    &quot;Python.build_lattice_dataset.executor&quot;: &quot;Run&quot;,
+    &quot;Python.build_pair_dataset.executor&quot;: &quot;Run&quot;,
+    &quot;Python.build_stg_dataset.executor&quot;: &quot;Run&quot;,
+    &quot;Python.build_subset_dataset.executor&quot;: &quot;Run&quot;,
+    &quot;Python.dbg_builder.executor&quot;: &quot;Run&quot;,
+    &quot;Python.eca_stg.executor&quot;: &quot;Run&quot;,
+    &quot;Python.generate.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test.executor&quot;: &quot;Run&quot;,
+    &quot;Python.view.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;winter__vacation__geoffrey&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
