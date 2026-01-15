@@ -5,28 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ad846c70-7f96-4992-8fd2-4885e64e00c0" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/dbg/build_dbg_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dbg/dbg_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dbg/eca_dbg.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/demo.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dependency_graph/build_dependency_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dependency_graph/dependency_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dependency_graph/eca_dependency.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lattice_graph/build_lattice_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lattice_graph/eca_lattice.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lattice_graph/lattice_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pair_graph/build_pair_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pair_graph/eca_pair.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pair_graph/pair_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/stg/build_stg_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/stg/eca_stg.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/stg/stg_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/subset_graph/build_subset_dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/subset_graph/eca_subset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/subset_graph/subset_dataset.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/eca_gnn/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/eca_gnn/normalized_mutual_info_classif.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -74,6 +53,7 @@
     "Python.build_subset_dataset.executor": "Run",
     "Python.dbg_builder.executor": "Run",
     "Python.eca_stg.executor": "Run",
+    "Python.export.executor": "Run",
     "Python.generate.executor": "Run",
     "Python.test.executor": "Run",
     "Python.view.executor": "Run",
@@ -113,6 +93,7 @@
       <workItem from="1768184755346" duration="1009000" />
       <workItem from="1768309378622" duration="2000" />
       <workItem from="1768398870952" duration="9617000" />
+      <workItem from="1768441784060" duration="1326000" />
     </task>
     <servers />
   </component>
@@ -120,15 +101,16 @@
     <option name="version" value="3" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/CellularAutomata$export.coverage" NAME="export 覆盖结果" MODIFIED="1768443227738" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/CellularAutomata$eca_stg.coverage" NAME="eca_stg 覆盖结果" MODIFIED="1768419998620" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/stg" />
+    <SUITE FILE_PATH="coverage/CellularAutomata$build_stg_dataset.coverage" NAME="build_stg_dataset 覆盖结果" MODIFIED="1768420021596" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/stg" />
+    <SUITE FILE_PATH="coverage/CellularAutomata$build_dbg_dataset.coverage" NAME="build_dbg_dataset 覆盖结果" MODIFIED="1768399909393" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/dbg" />
+    <SUITE FILE_PATH="coverage/CellularAutomata$build_lattice_dataset.coverage" NAME="build_lattice_dataset 覆盖结果" MODIFIED="1768421128097" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/lattice_graph" />
     <SUITE FILE_PATH="coverage/CellularAutomata$view.coverage" NAME="view 覆盖结果" MODIFIED="1768400275265" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/dbg/eca_dbg_dataset/processed" />
     <SUITE FILE_PATH="coverage/CellularAutomata$build_dependency_dataset.coverage" NAME="build_dependency_dataset 覆盖结果" MODIFIED="1768421111208" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/dependency_graph" />
     <SUITE FILE_PATH="coverage/CellularAutomata$generate.coverage" NAME="generate 覆盖结果" MODIFIED="1768185155382" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/dbg" />
-    <SUITE FILE_PATH="coverage/CellularAutomata$eca_stg.coverage" NAME="eca_stg 覆盖结果" MODIFIED="1768419998620" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/stg" />
-    <SUITE FILE_PATH="coverage/CellularAutomata$build_stg_dataset.coverage" NAME="build_stg_dataset 覆盖结果" MODIFIED="1768420021596" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/stg" />
     <SUITE FILE_PATH="coverage/CellularAutomata$build_subset_dataset.coverage" NAME="build_subset_dataset 覆盖结果" MODIFIED="1768412903643" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/subset_graph" />
-    <SUITE FILE_PATH="coverage/CellularAutomata$build_dbg_dataset.coverage" NAME="build_dbg_dataset 覆盖结果" MODIFIED="1768399909393" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/dbg" />
     <SUITE FILE_PATH="coverage/CellularAutomata$test.coverage" NAME="test 覆盖结果" MODIFIED="1768401062704" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/pair_graph" />
-    <SUITE FILE_PATH="coverage/CellularAutomata$build_lattice_dataset.coverage" NAME="build_lattice_dataset 覆盖结果" MODIFIED="1768421128097" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/lattice_graph" />
     <SUITE FILE_PATH="coverage/CellularAutomata$dbg_builder.coverage" NAME="dbg_builder 覆盖结果" MODIFIED="1768184926698" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/dbg" />
     <SUITE FILE_PATH="coverage/CellularAutomata$build_pair_dataset.coverage" NAME="build_pair_dataset 覆盖结果" MODIFIED="1768401115393" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/pair_graph" />
   </component>
