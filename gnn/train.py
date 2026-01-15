@@ -1,342 +1,540 @@
+"""
+Training script for Multi-View GNN on CA classification.
+
+Supports:
+- Standard supervised learning on labeled data
+- Optional consistency regularization
+- Checkpoint saving and resuming
+- Detailed logging and evaluation
+"""
+
+import os
+import argparse
+import json
+from datetime import datetime
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GINConv, global_mean_pool
-from torch_geometric.data import DataLoader
+from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
+
 import numpy as np
-import pandas as pd
+from sklearn.metrics import classification_report, confusion_matrix
 from tqdm import tqdm
-import os
-import argparse
 
-from gnn.dataset import CADebruijnDataset, create_train_val_test_splits
-
-
-class GINEncoder(nn.Module):
-    def __init__(self, input_dim=1, edge_dim=1, hidden_dim=128, num_layers=4, embedding_dim=128, dropout=0.1):
-        super().__init__()
-        
-        self.num_layers = num_layers
-        self.dropout = dropout
-        self.edge_dim = edge_dim
-        
-        self.convs = nn.ModuleList()
-        self.batch_norms = nn.ModuleList()
-        
-        self.edge_encoders = nn.ModuleList()
-        
-        for i in range(num_layers):
-            in_dim = input_dim if i == 0 else hidden_dim
-            
-            if edge_dim > 1:
-                self.edge_encoders.append(nn.Linear(edge_dim, hidden_dim))
-                mlp_in_dim = in_dim + hidden_dim
-            else:
-                mlp_in_dim = in_dim
-            
-            mlp = nn.Sequential(
-                nn.Linear(mlp_in_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim)
-            )
-            self.convs.append(GINConv(mlp))
-            self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
-        
-        self.project = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, embedding_dim)
-        )
-    
-    def forward(self, data):
-        x, edge_index, edge_attr, batch = data.x, data.edge_index, data.edge_attr, data.batch
-        
-        for i in range(self.num_layers):
-            if self.edge_dim > 1 and edge_attr is not None:
-                edge_emb = self.edge_encoders[i](edge_attr)
-                
-                row, col = edge_index
-                edge_features = edge_emb
-                aggregated = torch.zeros(x.size(0), edge_emb.size(1), device=x.device)
-                aggregated.index_add_(0, col, edge_features)
-                
-                x_with_edges = torch.cat([x, aggregated], dim=1)
-                x = self.convs[i](x_with_edges, edge_index)
-            else:
-                x = self.convs[i](x, edge_index)
-            
-            x = self.batch_norms[i](x)
-            x = F.relu(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
-        
-        x = global_mean_pool(x, batch)
-        x = self.project(x)
-        
-        return x
+from gnn.multi_view_dataset import CAMultiViewDataset, create_splits, custom_collate_fn
+from gnn.multi_view_model import MultiViewGNN, MultiViewGNN_WithConsistency, consistency_loss
 
 
-class GraphAutoencoder(nn.Module):
-    def __init__(self, encoder, decoder_hidden_dim=128):
-        super().__init__()
-        self.encoder = encoder
-        
-        embedding_dim = encoder.project[-1].out_features
-        
-        self.decoder = nn.Sequential(
-            nn.Linear(embedding_dim, decoder_hidden_dim),
-            nn.ReLU(),
-            nn.Linear(decoder_hidden_dim, decoder_hidden_dim),
-            nn.ReLU(),
-            nn.Linear(decoder_hidden_dim, 32)
-        )
+def parse_args():
+    parser = argparse.ArgumentParser(description='Train Multi-View GNN for CA Classification')
     
-    def forward(self, data):
-        z = self.encoder(data)
-        node_reconstruction = self.decoder(z)
-        return z, node_reconstruction
+    # Data
+    parser.add_argument('--data_path', type=str, 
+                        default='data/benchmark/generated_dataset_100rules_10seeds.csv',
+                        help='Path to CSV file')
+    parser.add_argument('--train_ratio', type=float, default=0.7,
+                        help='Training set ratio')
+    parser.add_argument('--val_ratio', type=float, default=0.15,
+                        help='Validation set ratio')
+    parser.add_argument('--seed', type=int, default=42,
+                        help='Random seed')
     
-    def encode(self, data):
-        return self.encoder(data)
+    # Model architecture
+    parser.add_argument('--hidden_dim', type=int, default=128,
+                        help='Hidden dimension for GNN layers')
+    parser.add_argument('--embedding_dim', type=int, default=64,
+                        help='Embedding dimension for each view')
+    parser.add_argument('--num_layers', type=int, default=3,
+                        help='Number of GNN layers')
+    parser.add_argument('--dropout', type=float, default=0.1,
+                        help='Dropout rate')
+    
+    # Graph parameters
+    parser.add_argument('--lattice_N', type=int, default=20,
+                        help='Lattice size for view 1')
+    parser.add_argument('--dependency_T', type=int, default=4,
+                        help='Time steps for dependency graph')
+    parser.add_argument('--dependency_W', type=int, default=7,
+                        help='Width for dependency graph')
+    
+    # Training
+    parser.add_argument('--batch_size', type=int, default=16,
+                        help='Batch size')
+    parser.add_argument('--epochs', type=int, default=200,
+                        help='Number of epochs')
+    parser.add_argument('--lr', type=float, default=1e-3,
+                        help='Learning rate')
+    parser.add_argument('--weight_decay', type=float, default=1e-5,
+                        help='Weight decay')
+    parser.add_argument('--scheduler', type=str, default='cosine',
+                        choices=['cosine', 'plateau', 'none'],
+                        help='Learning rate scheduler')
+    
+    # Consistency regularization
+    parser.add_argument('--use_consistency', action='store_true',
+                        help='Use consistency regularization')
+    parser.add_argument('--consistency_weight', type=float, default=0.1,
+                        help='Weight for consistency loss')
+    parser.add_argument('--consistency_warmup', type=int, default=10,
+                        help='Epochs before applying consistency loss')
+    
+    # Optimization
+    parser.add_argument('--num_workers', type=int, default=4,
+                        help='Number of data loading workers')
+    parser.add_argument('--early_stopping', type=int, default=20,
+                        help='Early stopping patience')
+    
+    # Checkpointing
+    parser.add_argument('--output_dir', type=str, default='outputs/multi_view',
+                        help='Output directory for checkpoints and logs')
+    parser.add_argument('--save_every', type=int, default=10,
+                        help='Save checkpoint every N epochs')
+    parser.add_argument('--resume', type=str, default=None,
+                        help='Path to checkpoint to resume from')
+    
+    # Logging
+    parser.add_argument('--log_every', type=int, default=5,
+                        help='Log every N epochs')
+    
+    args = parser.parse_args()
+    return args
 
 
-def contrastive_loss(z_i, z_j, temperature=0.5):
-    batch_size = z_i.shape[0]
-    
-    z_i = F.normalize(z_i, dim=1)
-    z_j = F.normalize(z_j, dim=1)
-    
-    representations = torch.cat([z_i, z_j], dim=0)
-    similarity_matrix = torch.mm(representations, representations.t())
-    
-    mask = torch.eye(2 * batch_size, dtype=torch.bool, device=z_i.device)
-    similarity_matrix = similarity_matrix.masked_fill(mask, -9e15)
-    
-    positives = torch.cat([
-        torch.diag(similarity_matrix, batch_size),
-        torch.diag(similarity_matrix, -batch_size)
-    ], dim=0)
-    
-    negatives = similarity_matrix[~mask].view(2 * batch_size, -1)
-    
-    logits = torch.cat([positives.unsqueeze(1), negatives], dim=1)
-    logits = logits / temperature
-    
-    labels = torch.zeros(2 * batch_size, dtype=torch.long, device=z_i.device)
-    
-    loss = F.cross_entropy(logits, labels)
-    
-    return loss
+def set_seed(seed):
+    """Set random seed for reproducibility."""
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
-def augment_graph(data):
-    num_edges = data.edge_index.shape[1]
-    mask = torch.rand(num_edges) > 0.1
-    
-    augmented_data = data.clone()
-    augmented_data.edge_index = data.edge_index[:, mask]
-    if data.edge_attr is not None:
-        augmented_data.edge_attr = data.edge_attr[mask]
-    
-    return augmented_data
-
-
-def train_contrastive(model, loader, optimizer, device, temperature=0.5):
+def train_epoch(model, loader, optimizer, device, args, epoch):
+    """Train for one epoch."""
     model.train()
-    total_loss = 0
     
-    for data in loader:
-        data = data.to(device)
-        
-        data_aug = augment_graph(data)
-        
-        z_original = model.encode(data)
-        z_augmented = model.encode(data_aug)
-        
-        loss = contrastive_loss(z_original, z_augmented, temperature)
+    total_loss = 0
+    total_cls_loss = 0
+    total_cons_loss = 0
+    correct = 0
+    total = 0
+    
+    pbar = tqdm(loader, desc=f'Epoch {epoch}')
+    
+    for batch in pbar:
+        # Move batch to device
+        batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v 
+                 for k, v in batch.items()}
         
         optimizer.zero_grad()
+        
+        # Forward pass
+        if args.use_consistency:
+            logits, individual_logits = model(batch, return_individual=True)
+            
+            # Classification loss
+            cls_loss = F.cross_entropy(logits, batch['label'])
+            
+            # Consistency loss (with warmup)
+            if epoch >= args.consistency_warmup:
+                cons_loss = consistency_loss(individual_logits)
+                loss = cls_loss + args.consistency_weight * cons_loss
+                total_cons_loss += cons_loss.item() * batch['label'].size(0)
+            else:
+                loss = cls_loss
+                cons_loss = torch.tensor(0.0)
+        else:
+            logits = model(batch)
+            cls_loss = F.cross_entropy(logits, batch['label'])
+            loss = cls_loss
+            cons_loss = torch.tensor(0.0)
+        
+        # Backward pass
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         
-        total_loss += loss.item() * data.num_graphs
+        # Statistics
+        total_loss += loss.item() * batch['label'].size(0)
+        total_cls_loss += cls_loss.item() * batch['label'].size(0)
+        
+        pred = logits.argmax(dim=1)
+        correct += (pred == batch['label']).sum().item()
+        total += batch['label'].size(0)
+        
+        # Update progress bar
+        pbar.set_postfix({
+            'loss': f'{loss.item():.4f}',
+            'acc': f'{correct/total:.4f}'
+        })
     
-    return total_loss / len(loader.dataset)
-
-
-def train_autoencoder(model, loader, optimizer, device):
-    model.train()
-    total_loss = 0
+    metrics = {
+        'loss': total_loss / total,
+        'cls_loss': total_cls_loss / total,
+        'cons_loss': total_cons_loss / total if args.use_consistency else 0,
+        'accuracy': correct / total
+    }
     
-    for data in loader:
-        data = data.to(device)
-        
-        z, node_recon = model(data)
-        
-        target = data.x.squeeze()
-        batch_idx = data.batch
-        
-        node_recon_expanded = node_recon[batch_idx]
-        
-        loss = F.mse_loss(node_recon_expanded, target)
-        
-        optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
-        
-        total_loss += loss.item() * data.num_graphs
-    
-    return total_loss / len(loader.dataset)
+    return metrics
 
 
-def extract_embeddings(model, loader, device):
+@torch.no_grad()
+def evaluate(model, loader, device, args, return_predictions=False):
+    """Evaluate on validation/test set."""
     model.eval()
-    embeddings = []
-    rule_ids = []
     
-    with torch.no_grad():
-        for data in loader:
-            data = data.to(device)
-            z = model.encode(data)
-            embeddings.append(z.cpu().numpy())
-            rule_ids.extend(data.y.cpu().numpy())
+    total_loss = 0
+    correct = 0
+    total = 0
     
-    embeddings = np.vstack(embeddings)
-    rule_ids = np.array(rule_ids)
+    all_preds = []
+    all_labels = []
+    all_rule_ids = []
     
-    return embeddings, rule_ids
+    for batch in tqdm(loader, desc='Evaluating'):
+        # Move batch to device
+        batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v 
+                 for k, v in batch.items()}
+        
+        # Forward pass
+        if args.use_consistency:
+            logits, _ = model(batch, return_individual=False)
+        else:
+            logits = model(batch)
+        
+        loss = F.cross_entropy(logits, batch['label'])
+        
+        # Statistics
+        total_loss += loss.item() * batch['label'].size(0)
+        
+        pred = logits.argmax(dim=1)
+        correct += (pred == batch['label']).sum().item()
+        total += batch['label'].size(0)
+        
+        # Collect predictions
+        all_preds.extend(pred.cpu().numpy())
+        all_labels.extend(batch['label'].cpu().numpy())
+        all_rule_ids.extend(batch['rule_id'].cpu().numpy())
+    
+    metrics = {
+        'loss': total_loss / total,
+        'accuracy': correct / total
+    }
+    
+    if return_predictions:
+        return metrics, all_preds, all_labels, all_rule_ids
+    
+    return metrics
+
+
+def save_checkpoint(model, optimizer, scheduler, epoch, metrics, args, filename='checkpoint.pt'):
+    """Save training checkpoint."""
+    checkpoint = {
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'scheduler_state_dict': scheduler.state_dict() if scheduler else None,
+        'metrics': metrics,
+        'args': vars(args)
+    }
+    
+    filepath = os.path.join(args.output_dir, filename)
+    torch.save(checkpoint, filepath)
+    print(f"Checkpoint saved to {filepath}")
+
+
+def load_checkpoint(model, optimizer, scheduler, checkpoint_path):
+    """Load training checkpoint."""
+    checkpoint = torch.load(checkpoint_path)
+    
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    
+    if scheduler and checkpoint['scheduler_state_dict']:
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    
+    print(f"Resumed from epoch {checkpoint['epoch']}")
+    print(f"Previous metrics: {checkpoint['metrics']}")
+    
+    return checkpoint['epoch'], checkpoint['metrics']
+
+
+def print_classification_report(labels, preds, class_names):
+    """Print detailed classification metrics."""
+    print("\n" + "="*80)
+    print("CLASSIFICATION REPORT")
+    print("="*80)
+    
+    report = classification_report(
+        labels, preds, 
+        target_names=class_names,
+        digits=4
+    )
+    print(report)
+    
+    print("\nCONFUSION MATRIX")
+    print("-"*80)
+    cm = confusion_matrix(labels, preds)
+    
+    # Print header
+    print(f"{'True\\Pred':<15}", end='')
+    for name in class_names:
+        print(f"{name[:10]:>12}", end='')
+    print()
+    
+    # Print matrix
+    for i, name in enumerate(class_names):
+        print(f"{name[:15]:<15}", end='')
+        for j in range(len(class_names)):
+            print(f"{cm[i,j]:>12}", end='')
+        print()
+    print("="*80 + "\n")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Train De Bruijn GNN')
-    parser.add_argument('--mode', type=str, default='deb', choices=['deb', '01'],
-                        help='Graph representation: deb (32 nodes) or 01 (2 nodes)')
-    parser.add_argument('--batch_size', type=int, default=256)
-    parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--hidden_dim', type=int, default=128)
-    parser.add_argument('--embedding_dim', type=int, default=128)
-    parser.add_argument('--num_layers', type=int, default=4)
-    parser.add_argument('--learning_mode', type=str, default='contrastive', 
-                        choices=['contrastive', 'autoencoder'])
-    parser.add_argument('--num_workers', type=int, default=4,
-                        help='Number of data loading workers (0 = single process)')
-    parser.add_argument('--pin_memory', action='store_true', default=True,
-                        help='Pin memory for faster GPU transfer')
-    args = parser.parse_args()
+    args = parse_args()
     
-    if args.mode == 'deb':
-        from ca.debruijn import rule_id_to_debruijn_graph as graph_builder
-        input_dim = 1
-        edge_dim = 1
-        print("Using state graph representation (32 nodes, 64 edges)")
-    else:
-        from ca.simple01 import rule_id_to_simple_graph as graph_builder
-        input_dim = 1
-        edge_dim = 6
-        print("Using symbol graph representation (2 nodes, 32 edges)")
-    
-    from gnn import dataset
-    dataset.rule_id_to_debruijn_graph = graph_builder
-    
-    csv_path = "data/features/cheap_features.csv"
-    output_dir = f"data/gnn/{args.mode}"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Set up
+    set_seed(args.seed)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     
-    train_idx, val_idx, test_idx = create_train_val_test_splits(csv_path, seed=42)
+    # Create output directory
+    os.makedirs(args.output_dir, exist_ok=True)
     
-    train_dataset = CADebruijnDataset(csv_path, split_indices=train_idx)
-    val_dataset = CADebruijnDataset(csv_path, split_indices=val_idx)
-    test_dataset = CADebruijnDataset(csv_path, split_indices=test_idx)
+    # Save args
+    with open(os.path.join(args.output_dir, 'args.json'), 'w') as f:
+        json.dump(vars(args), f, indent=2)
     
-    # Configure DataLoader for efficient multiprocessing
-    loader_kwargs = {
-        'batch_size': args.batch_size,
-        'num_workers': args.num_workers,
-        'pin_memory': args.pin_memory and torch.cuda.is_available(),
-        'persistent_workers': args.num_workers > 0,  # Keep workers alive between epochs
-    }
+    # Load data
+    print("\nLoading data...")
+    train_idx, val_idx, test_idx = create_splits(
+        args.data_path, 
+        train_ratio=args.train_ratio,
+        val_ratio=args.val_ratio,
+        seed=args.seed
+    )
     
-    train_loader = DataLoader(train_dataset, shuffle=True, **loader_kwargs)
-    val_loader = DataLoader(val_dataset, shuffle=False, **loader_kwargs)
-    test_loader = DataLoader(test_dataset, shuffle=False, **loader_kwargs)
+    train_dataset = CAMultiViewDataset(
+        args.data_path, 
+        split_indices=train_idx,
+        lattice_N=args.lattice_N,
+        dependency_T=args.dependency_T,
+        dependency_W=args.dependency_W
+    )
     
-    print(f"DataLoader config: num_workers={args.num_workers}, pin_memory={loader_kwargs['pin_memory']}, persistent_workers={loader_kwargs['persistent_workers']}")
+    val_dataset = CAMultiViewDataset(
+        args.data_path, 
+        split_indices=val_idx,
+        lattice_N=args.lattice_N,
+        dependency_T=args.dependency_T,
+        dependency_W=args.dependency_W
+    )
+    
+    test_dataset = CAMultiViewDataset(
+        args.data_path, 
+        split_indices=test_idx,
+        lattice_N=args.lattice_N,
+        dependency_T=args.dependency_T,
+        dependency_W=args.dependency_W
+    )
     
     print(f"Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)}")
     
-    encoder = GINEncoder(
-        input_dim=input_dim,
-        edge_dim=edge_dim,
-        hidden_dim=args.hidden_dim,
-        num_layers=args.num_layers,
-        embedding_dim=args.embedding_dim,
-        dropout=0.1
-    ).to(device)
+    # Create dataloaders
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        collate_fn=custom_collate_fn,
+        num_workers=args.num_workers,
+        pin_memory=True
+    )
     
-    model = GraphAutoencoder(encoder, decoder_hidden_dim=args.hidden_dim).to(device)
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=custom_collate_fn,
+        num_workers=args.num_workers,
+        pin_memory=True
+    )
     
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=custom_collate_fn,
+        num_workers=args.num_workers,
+        pin_memory=True
+    )
     
-    best_val_loss = float('inf')
-    patience = 10
+    # Create model
+    print("\nCreating model...")
+    if args.use_consistency:
+        model = MultiViewGNN_WithConsistency(
+            hidden_dim=args.hidden_dim,
+            embedding_dim=args.embedding_dim,
+            num_classes=len(CAMultiViewDataset.CLASS_NAMES),
+            dropout=args.dropout
+        )
+    else:
+        model = MultiViewGNN(
+            hidden_dim=args.hidden_dim,
+            embedding_dim=args.embedding_dim,
+            num_classes=len(CAMultiViewDataset.CLASS_NAMES),
+            dropout=args.dropout
+        )
+    
+    model = model.to(device)
+    
+    # Count parameters
+    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Model parameters: {num_params:,}")
+    
+    # Optimizer
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=args.lr,
+        weight_decay=args.weight_decay
+    )
+    
+    # Scheduler
+    if args.scheduler == 'cosine':
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
+    elif args.scheduler == 'plateau':
+        scheduler = ReduceLROnPlateau(optimizer, mode='max', patience=10, factor=0.5)
+    else:
+        scheduler = None
+    
+    # Resume from checkpoint if specified
+    start_epoch = 0
+    best_val_acc = 0
+    
+    if args.resume:
+        start_epoch, prev_metrics = load_checkpoint(model, optimizer, scheduler, args.resume)
+        best_val_acc = prev_metrics.get('val_accuracy', 0)
+        start_epoch += 1
+    
+    # Training loop
+    print("\nStarting training...")
+    print(f"Consistency regularization: {args.use_consistency}")
+    if args.use_consistency:
+        print(f"  Weight: {args.consistency_weight}, Warmup: {args.consistency_warmup} epochs")
+    
     patience_counter = 0
+    history = {
+        'train_loss': [],
+        'train_acc': [],
+        'val_loss': [],
+        'val_acc': []
+    }
     
-    print(f"\nTraining with {args.learning_mode} learning...")
-    
-    for epoch in range(args.epochs):
-        if args.learning_mode == "contrastive":
-            train_loss = train_contrastive(model, train_loader, optimizer, device, temperature=0.5)
-            val_loss = train_contrastive(model, val_loader, optimizer, device, temperature=0.5)
-        else:
-            train_loss = train_autoencoder(model, train_loader, optimizer, device)
-            val_loss = train_autoencoder(model, val_loader, optimizer, device)
+    for epoch in range(start_epoch, args.epochs):
+        # Train
+        train_metrics = train_epoch(model, train_loader, optimizer, device, args, epoch)
         
-        scheduler.step()
+        # Validate
+        val_metrics = evaluate(model, val_loader, device, args)
         
-        print(f"Epoch {epoch+1}/{args.epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+        # Update scheduler
+        if scheduler:
+            if args.scheduler == 'plateau':
+                scheduler.step(val_metrics['accuracy'])
+            else:
+                scheduler.step()
         
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        # Log
+        if epoch % args.log_every == 0:
+            print(f"\nEpoch {epoch}/{args.epochs}")
+            print(f"  Train - Loss: {train_metrics['loss']:.4f}, Acc: {train_metrics['accuracy']:.4f}")
+            if args.use_consistency and epoch >= args.consistency_warmup:
+                print(f"    Cls Loss: {train_metrics['cls_loss']:.4f}, Cons Loss: {train_metrics['cons_loss']:.4f}")
+            print(f"  Val   - Loss: {val_metrics['loss']:.4f}, Acc: {val_metrics['accuracy']:.4f}")
+            print(f"  LR: {optimizer.param_groups[0]['lr']:.6f}")
+        
+        # Save history
+        history['train_loss'].append(train_metrics['loss'])
+        history['train_acc'].append(train_metrics['accuracy'])
+        history['val_loss'].append(val_metrics['loss'])
+        history['val_acc'].append(val_metrics['accuracy'])
+        
+        # Save best model
+        if val_metrics['accuracy'] > best_val_acc:
+            best_val_acc = val_metrics['accuracy']
             patience_counter = 0
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'val_loss': val_loss,
-                'args': args,
-            }, os.path.join(output_dir, 'best_model.pt'))
-            print(f"  Model saved (val_loss improved to {val_loss:.4f})")
+            
+            save_checkpoint(
+                model, optimizer, scheduler, epoch,
+                {'train': train_metrics, 'val': val_metrics},
+                args, filename='best_model.pt'
+            )
+            print(f"  ★ New best validation accuracy: {best_val_acc:.4f}")
         else:
             patience_counter += 1
-            if patience_counter >= patience:
-                print(f"Early stopping at epoch {epoch+1}")
-                break
+        
+        # Periodic checkpoint
+        if epoch % args.save_every == 0:
+            save_checkpoint(
+                model, optimizer, scheduler, epoch,
+                {'train': train_metrics, 'val': val_metrics},
+                args, filename=f'checkpoint_epoch{epoch}.pt'
+            )
+        
+        # Early stopping
+        if patience_counter >= args.early_stopping:
+            print(f"\nEarly stopping at epoch {epoch}")
+            break
     
-    checkpoint = torch.load(os.path.join(output_dir, 'best_model.pt'))
+    # Save final model
+    save_checkpoint(
+        model, optimizer, scheduler, epoch,
+        {'train': train_metrics, 'val': val_metrics},
+        args, filename='final_model.pt'
+    )
+    
+    # Save training history
+    import json
+    with open(os.path.join(args.output_dir, 'history.json'), 'w') as f:
+        json.dump(history, f, indent=2)
+    
+    # Final evaluation on test set
+    print("\n" + "="*80)
+    print("FINAL EVALUATION ON TEST SET")
+    print("="*80)
+    
+    # Load best model
+    checkpoint = torch.load(os.path.join(args.output_dir, 'best_model.pt'))
     model.load_state_dict(checkpoint['model_state_dict'])
-    print(f"\nLoaded best model from epoch {checkpoint['epoch']+1}")
     
-    print("\nExtracting embeddings...")
-    train_emb, train_ids = extract_embeddings(model, train_loader, device)
-    val_emb, val_ids = extract_embeddings(model, val_loader, device)
-    test_emb, test_ids = extract_embeddings(model, test_loader, device)
+    test_metrics, test_preds, test_labels, test_rule_ids = evaluate(
+        model, test_loader, device, args, return_predictions=True
+    )
     
-    all_emb = np.vstack([train_emb, val_emb, test_emb])
-    all_ids = np.concatenate([train_ids, val_ids, test_ids])
+    print(f"\nTest Accuracy: {test_metrics['accuracy']:.4f}")
+    print(f"Test Loss: {test_metrics['loss']:.4f}")
     
-    emb_df = pd.DataFrame(all_emb)
-    emb_df['rule_id'] = all_ids
-    emb_df.to_csv(os.path.join(output_dir, 'debruijn_embeddings.csv'), index=False)
+    # Detailed classification report
+    print_classification_report(
+        test_labels, test_preds, 
+        CAMultiViewDataset.CLASS_NAMES
+    )
     
-    print(f"Saved embeddings: {all_emb.shape}")
-    print(f"Output: {os.path.join(output_dir, 'debruijn_embeddings.csv')}")
+    # Save predictions
+    predictions = {
+        'rule_ids': [int(x) for x in test_rule_ids],
+        'true_labels': [int(x) for x in test_labels],
+        'predictions': [int(x) for x in test_preds],
+        'class_names': CAMultiViewDataset.CLASS_NAMES
+    }
+    
+    with open(os.path.join(args.output_dir, 'test_predictions.json'), 'w') as f:
+        json.dump(predictions, f, indent=2)
+    
+    print(f"\nAll results saved to {args.output_dir}")
+    print("\nTraining complete! ✓")
 
 
 if __name__ == "__main__":
