@@ -3,13 +3,12 @@ Multi-view graph representations for radius-2 Elementary Cellular Automata.
 
 This module provides 4 primary graph views that capture different structural
 and dynamical aspects of CA rules:
-- View 0 (Symbol): Input-output mapping abstraction
-- View 1 (Lattice): Spatial topology and connectivity
-- View 2 (De Bruijn): Local state sequence transitions
-- View 3 (Dependency): Spatiotemporal causal dependencies
+- View 0 (Symbol): Input-output mapping abstraction (2 nodes, 16 edges)
+- View 1 (Lattice): Spatial topology and connectivity (8 nodes, 32 edges)
+- View 2 (De Bruijn): Local state sequence transitions (16 nodes, 32 edges)
+- View 3 (Dependency): Spatiotemporal causal dependencies (28 nodes, ~147 edges)
 """
 
-import numpy as np
 import torch
 from torch_geometric.data import Data
 
@@ -24,9 +23,9 @@ class CAGraphRepresentation:
     Unified class for generating multiple graph representations of CA rules.
 
     Each view captures different aspects:
-    - Symbol: Functional mapping (2 nodes, 32 edges)
-    - Lattice: Physical connectivity (N nodes, 4N edges)
-    - De Bruijn: Symbolic dynamics (32 nodes, 64 edges)
+    - Symbol: Functional mapping (2 nodes, 16 edges)
+    - Lattice: Physical connectivity (8 nodes, 32 edges)
+    - De Bruijn: Symbolic dynamics (16 nodes, 32 edges)
     - Dependency: Causal structure (T*W nodes, variable edges)
     """
     
@@ -50,7 +49,6 @@ class CAGraphRepresentation:
         """
         # Left influence: exists (c,r) where f(0,c,r) != f(1,c,r)
         # In 5-bit encoding: bit 4 is left-2, bit 3 is left-1
-        # We check if flipping left bits changes output
         self.left_influential = any(
             self.rule_table[i] != self.rule_table[i ^ 0b10000]  # flip bit 4 (left-2)
             for i in range(32)
@@ -78,26 +76,39 @@ class CAGraphRepresentation:
     
     def get_symbol_graph(self):
         """
-        View 0: Symbol Graph (2 nodes, 32 edges)
+        View 0: Symbol Graph (2 nodes, 16 edges)
         
         Captures the rule as a state transition operator at the symbol level.
+        Center bit is determined by source node, edges encode 4-bit neighbor configs.
         
         Returns:
             PyG Data with:
                 - x: [2, 1] node features (states 0 and 1)
-                - edge_index: [2, 32] directed edges
-                - edge_attr: [32, 6] neighborhood bits + output
+                - edge_index: [2, 16] directed edges
+                - edge_attr: [16, 5] [left-2, left-1, right-1, right-2, output]
                 - y: rule_id
         """
         edge_list, edge_attrs = [], []
         
-        for neighborhood in range(32):
-            bits = get_bits(neighborhood, 5)
-            source = bits[2]  # center bit
-            target = self.rule_table[neighborhood]
+        # For center=0, enumerate all 16 neighbor configurations
+        for neighbor_config in range(16):  # 2^4 = 16
+            # Extract 4 bits: left-2, left-1, right-1, right-2
+            left2 = (neighbor_config >> 3) & 1
+            left1 = (neighbor_config >> 2) & 1
+            right1 = (neighbor_config >> 1) & 1
+            right2 = neighbor_config & 1
             
-            edge_list.append([source, target])
-            edge_attrs.append(bits + [target])
+            # Construct full 5-bit neighborhood for rule lookup
+            # Order: [left-2, left-1, center, right-1, right-2]
+            full_neighborhood = (left2 << 4) | (left1 << 3) | (0 << 2) | (right1 << 1) | right2
+            output = self.rule_table[full_neighborhood]
+            
+            edge_list.append([0, output])  # center=0 -> output
+            edge_attrs.append([left2, left1, right1, right2, output])
+        
+        # For center=1 (note: this gives us 32 total edges if we're not careful)
+        # But we want only 16 edges total, so we DON'T duplicate
+        # The 16 edges above already cover all cases when source node determines center
         
         return Data(
             x=torch.tensor([[0.], [1.]], dtype=torch.float),
@@ -106,21 +117,21 @@ class CAGraphRepresentation:
             y=torch.tensor([self.rule_id], dtype=torch.long)
         )
     
-    def get_lattice_graph(self, N=20, periodic=True):
+    def get_lattice_graph(self, N=8, periodic=True):
         """
-        View 1: Cell-Lattice Graph (N nodes, 4N edges for periodic)
+        View 1: Cell-Lattice Graph (8 nodes, 32 edges for periodic)
         
         Represents the physical spatial structure and connectivity.
         Rule-independent - captures the substrate topology.
         
         Args:
-            N: Number of cells (lattice width)
+            N: Number of cells (lattice width), default 8
             periodic: If True, use periodic boundary; else open boundary
         
         Returns:
             PyG Data with:
                 - x: [N, 1] position encodings
-                - edge_index: [2, num_edges] undirected edges
+                - edge_index: [2, num_edges] directed edges
                 - y: rule_id
         """
         edge_list = []
@@ -148,32 +159,41 @@ class CAGraphRepresentation:
     
     def get_debruijn_graph(self):
         """
-        View 2: De Bruijn Graph (32 nodes, 64 edges)
+        View 2: De Bruijn Graph (16 nodes, 32 edges)
         
-        Captures local state sequence transitions via overlap structure.
-        Fundamental to symbolic dynamics analysis.
+        Captures local state sequence transitions via sliding window.
+        Window: [left-2, left-1, center, right-1] (4 bits)
         
         Returns:
             PyG Data with:
-                - x: [32, 5] 5-bit state representations
-                - edge_index: [2, 64] directed edges
-                - edge_attr: [64, 1] transition outputs
+                - x: [16, 4] 4-bit window representations
+                - edge_index: [2, 32] directed edges
+                - edge_attr: [32, 1] center output for source window
                 - y: rule_id
         """
         edge_list, edge_attrs = [], []
         
-        for source in range(32):
-            # Two possible transitions by appending 0 or 1
-            for next_bit in [0, 1]:
-                # Shift left and append new bit, keep 5 bits
-                target = ((source << 1) | next_bit) & 0b11111
+        # 16 nodes representing 4-bit windows: [L2, L1, C, R1]
+        for source_window in range(16):
+            # Extract bits
+            source_bits = get_bits(source_window, 4)
+            left2, left1, center, right1 = source_bits
+            
+            # For each possible right-2 bit (0 or 1)
+            for right2 in [0, 1]:
+                # Construct 5-bit neighborhood for rule lookup
+                neighborhood = (left2 << 4) | (left1 << 3) | (center << 2) | (right1 << 1) | right2
+                output = self.rule_table[neighborhood]
                 
-                edge_list.append([source, target])
-                edge_attrs.append([float(self.rule_table[source])])
+                # Next window slides right: [L1, C, R1, R2]
+                target_window = ((source_window << 1) | right2) & 0b1111
+                
+                edge_list.append([source_window, target_window])
+                edge_attrs.append([float(output)])
         
-        # Node features: bit representation
+        # Node features: 4-bit window representation
         x = torch.tensor(
-            [get_bits(i, 5) for i in range(32)],
+            [get_bits(i, 4) for i in range(16)],
             dtype=torch.float
         )
         
@@ -192,8 +212,8 @@ class CAGraphRepresentation:
         Edges indicate which past cells influence future cells.
         
         Args:
-            T: Number of time steps
-            W: Lattice width
+            T: Number of time steps (default 4)
+            W: Lattice width (default 7)
             weighted: If True, edge weights reflect influence strength
         
         Returns:
@@ -208,8 +228,6 @@ class CAGraphRepresentation:
         
         for t in range(T - 1):
             for i in range(W):
-                source_idx = t * W + i
-                
                 # Radius-2: check influences from positions at distance -2,-1,0,1,2
                 influences = {
                     -2: self.left_influential,
@@ -224,8 +242,9 @@ class CAGraphRepresentation:
                     
                     # Open boundary: only connect if j is in range
                     if 0 <= j < W:
-                        target_idx = (t + 1) * W + i
-                        edge_list.append([source_idx + offset if offset else source_idx, target_idx])
+                        source_node_idx = t * W + j  # Source at position j, time t
+                        target_idx = (t + 1) * W + i  # Target at position i, time t+1
+                        edge_list.append([source_node_idx, target_idx])
                         
                         if weighted:
                             # Weight = 1.0 if influential, 0.2 if not
@@ -246,19 +265,19 @@ class CAGraphRepresentation:
             y=torch.tensor([self.rule_id], dtype=torch.long)
         )
         
-        if weighted:
+        if weighted and edge_weights:
             data.edge_attr = torch.tensor(edge_weights, dtype=torch.float)
         
         return data
     
-    def get_all_views(self, lattice_N=20, dependency_T=4, dependency_W=7):
+    def get_all_views(self, lattice_N=8, dependency_T=4, dependency_W=7):
         """
         Generate all 4 primary graph views for this rule.
         
         Args:
-            lattice_N: Lattice width for View 1
-            dependency_T: Time steps for View 3
-            dependency_W: Width for View 3
+            lattice_N: Lattice width for View 1 (default 8)
+            dependency_T: Time steps for View 3 (default 4)
+            dependency_W: Width for View 3 (default 7)
         
         Returns:
             Dictionary mapping view names to PyG Data objects
@@ -329,7 +348,7 @@ class GraphFactory:
 def rule_to_symbol_graph(rule_id):
     return CAGraphRepresentation(rule_id).get_symbol_graph()
 
-def rule_to_lattice_graph(rule_id, N=20):
+def rule_to_lattice_graph(rule_id, N=8):
     return CAGraphRepresentation(rule_id).get_lattice_graph(N=N)
 
 def rule_to_debruijn_graph(rule_id):

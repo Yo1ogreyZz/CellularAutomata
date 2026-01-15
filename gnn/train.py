@@ -23,8 +23,8 @@ import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix
 from tqdm import tqdm
 
-from gnn.multi_view_dataset import CAMultiViewDataset, create_splits, custom_collate_fn
-from gnn.multi_view_model import MultiViewGNN, MultiViewGNN_WithConsistency, consistency_loss
+from gnn.dataset import CAMultiViewDataset, create_splits, custom_collate_fn
+from gnn.model import MultiViewGNN, MultiViewGNN_WithConsistency, consistency_loss
 
 
 def parse_args():
@@ -52,12 +52,12 @@ def parse_args():
                         help='Dropout rate')
     
     # Graph parameters
-    parser.add_argument('--lattice_N', type=int, default=20,
-                        help='Lattice size for view 1')
+    parser.add_argument('--lattice_N', type=int, default=8,
+                        help='Lattice size for view 1 (default 8)')
     parser.add_argument('--dependency_T', type=int, default=4,
-                        help='Time steps for dependency graph')
+                        help='Time steps for dependency graph (default 4)')
     parser.add_argument('--dependency_W', type=int, default=7,
-                        help='Width for dependency graph')
+                        help='Width for dependency graph (default 7)')
     
     # Training
     parser.add_argument('--batch_size', type=int, default=16,
@@ -113,6 +113,7 @@ def set_seed(seed):
 
 def train_epoch(model, loader, optimizer, device, args, epoch):
     """Train for one epoch."""
+    from typing import Dict, Any
     model.train()
     
     total_loss = 0
@@ -141,7 +142,9 @@ def train_epoch(model, loader, optimizer, device, args, epoch):
             if epoch >= args.consistency_warmup:
                 cons_loss = consistency_loss(individual_logits)
                 loss = cls_loss + args.consistency_weight * cons_loss
-                total_cons_loss += cons_loss.item() * batch['label'].size(0)
+                # cons_loss is already a scalar tensor or float
+                cons_loss_value = cons_loss.item() if isinstance(cons_loss, torch.Tensor) else cons_loss
+                total_cons_loss += cons_loss_value * batch['label'].size(0)
             else:
                 loss = cls_loss
                 cons_loss = torch.tensor(0.0)
@@ -170,10 +173,10 @@ def train_epoch(model, loader, optimizer, device, args, epoch):
             'acc': f'{correct/total:.4f}'
         })
     
-    metrics = {
+    metrics: Dict[str, float] = {
         'loss': total_loss / total,
         'cls_loss': total_cls_loss / total,
-        'cons_loss': total_cons_loss / total if args.use_consistency else 0,
+        'cons_loss': total_cons_loss / total if args.use_consistency else 0.0,
         'accuracy': correct / total
     }
     
@@ -183,15 +186,16 @@ def train_epoch(model, loader, optimizer, device, args, epoch):
 @torch.no_grad()
 def evaluate(model, loader, device, args, return_predictions=False):
     """Evaluate on validation/test set."""
+    from typing import Dict, Any, Tuple, List, Optional
     model.eval()
     
     total_loss = 0
     correct = 0
     total = 0
     
-    all_preds = []
-    all_labels = []
-    all_rule_ids = []
+    all_preds: List[int] = []
+    all_labels: List[int] = []
+    all_rule_ids: List[int] = []
     
     for batch in tqdm(loader, desc='Evaluating'):
         # Move batch to device
@@ -218,7 +222,7 @@ def evaluate(model, loader, device, args, return_predictions=False):
         all_labels.extend(batch['label'].cpu().numpy())
         all_rule_ids.extend(batch['rule_id'].cpu().numpy())
     
-    metrics = {
+    metrics: Dict[str, float] = {
         'loss': total_loss / total,
         'accuracy': correct / total
     }
@@ -267,27 +271,38 @@ def print_classification_report(labels, preds, class_names):
     print("CLASSIFICATION REPORT")
     print("="*80)
     
+    # Get unique labels present in the data
+    unique_labels = np.unique(np.concatenate([labels, preds]))
+    present_class_names = [class_names[i] for i in unique_labels if i < len(class_names)]
+    
+    print(f"Present classes: {present_class_names}")
+    print(f"Unique labels in data: {unique_labels}")
+    
+    # Use labels parameter to specify which classes to include
     report = classification_report(
         labels, preds, 
-        target_names=class_names,
+        labels=unique_labels,
+        target_names=present_class_names,
         digits=4
     )
     print(report)
     
     print("\nCONFUSION MATRIX")
     print("-"*80)
-    cm = confusion_matrix(labels, preds)
+    cm = confusion_matrix(labels, preds, labels=unique_labels)
     
     # Print header
-    print(f"{'True\\Pred':<15}", end='')
-    for name in class_names:
+    true_pred_label = 'True\\Pred'
+    print(f"{true_pred_label:<15}", end='')
+    for name in present_class_names:
         print(f"{name[:10]:>12}", end='')
     print()
     
     # Print matrix
-    for i, name in enumerate(class_names):
+    for i, label_idx in enumerate(unique_labels):
+        name = class_names[label_idx] if label_idx < len(class_names) else f"Class {label_idx}"
         print(f"{name[:15]:<15}", end='')
-        for j in range(len(class_names)):
+        for j, _ in enumerate(unique_labels):
             print(f"{cm[i,j]:>12}", end='')
         print()
     print("="*80 + "\n")
@@ -305,8 +320,9 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
     
     # Save args
-    with open(os.path.join(args.output_dir, 'args.json'), 'w') as f:
-        json.dump(vars(args), f, indent=2)
+    args_file = os.path.join(args.output_dir, 'args.json')
+    with open(args_file, 'w', encoding='utf-8') as f:
+        json.dump(vars(args), f, indent=2)  # type: ignore
     
     # Load data
     print("\nLoading data...")
@@ -425,7 +441,7 @@ def main():
         print(f"  Weight: {args.consistency_weight}, Warmup: {args.consistency_warmup} epochs")
     
     patience_counter = 0
-    history = {
+    history: dict[str, list[float]] = {
         'train_loss': [],
         'train_acc': [],
         'val_loss': [],
@@ -440,30 +456,39 @@ def main():
         val_metrics = evaluate(model, val_loader, device, args)
         
         # Update scheduler
-        if scheduler:
-            if args.scheduler == 'plateau':
-                scheduler.step(val_metrics['accuracy'])
+        if scheduler is not None:
+            if args.scheduler == 'plateau' and isinstance(scheduler, ReduceLROnPlateau):
+                # ReduceLROnPlateau.step() expects the metric value
+                scheduler.step(val_metrics['accuracy'])  # type: ignore
+            elif isinstance(scheduler, (CosineAnnealingLR, ReduceLROnPlateau)):
+                # CosineAnnealingLR.step() takes no arguments
+                scheduler.step()  # type: ignore
             else:
-                scheduler.step()
+                scheduler.step()  # type: ignore
         
         # Log
         if epoch % args.log_every == 0:
             print(f"\nEpoch {epoch}/{args.epochs}")
-            print(f"  Train - Loss: {train_metrics['loss']:.4f}, Acc: {train_metrics['accuracy']:.4f}")
+            train_loss: float = train_metrics['loss']  # type: ignore
+            train_acc: float = train_metrics['accuracy']  # type: ignore
+            val_loss: float = val_metrics['loss']  # type: ignore
+            val_acc: float = val_metrics['accuracy']  # type: ignore
+            print(f"  Train - Loss: {train_loss:.4f}, Acc: {train_acc:.4f}")
             if args.use_consistency and epoch >= args.consistency_warmup:
-                print(f"    Cls Loss: {train_metrics['cls_loss']:.4f}, Cons Loss: {train_metrics['cons_loss']:.4f}")
-            print(f"  Val   - Loss: {val_metrics['loss']:.4f}, Acc: {val_metrics['accuracy']:.4f}")
+                print(f"    Cls Loss: {train_metrics['cls_loss']:.4f}, Cons Loss: {train_metrics['cons_loss']:.4f}")  # type: ignore
+            print(f"  Val   - Loss: {val_loss:.4f}, Acc: {val_acc:.4f}")
             print(f"  LR: {optimizer.param_groups[0]['lr']:.6f}")
         
         # Save history
-        history['train_loss'].append(train_metrics['loss'])
-        history['train_acc'].append(train_metrics['accuracy'])
-        history['val_loss'].append(val_metrics['loss'])
-        history['val_acc'].append(val_metrics['accuracy'])
+        history['train_loss'].append(train_metrics['loss'])  # type: ignore
+        history['train_acc'].append(train_metrics['accuracy'])  # type: ignore
+        history['val_loss'].append(val_metrics['loss'])  # type: ignore
+        history['val_acc'].append(val_metrics['accuracy'])  # type: ignore
         
         # Save best model
-        if val_metrics['accuracy'] > best_val_acc:
-            best_val_acc = val_metrics['accuracy']
+        val_acc_value: float = val_metrics['accuracy']  # type: ignore
+        if val_acc_value > best_val_acc:
+            best_val_acc = val_acc_value
             patience_counter = 0
             
             save_checkpoint(
@@ -496,7 +521,6 @@ def main():
     )
     
     # Save training history
-    import json
     with open(os.path.join(args.output_dir, 'history.json'), 'w') as f:
         json.dump(history, f, indent=2)
     
@@ -513,8 +537,10 @@ def main():
         model, test_loader, device, args, return_predictions=True
     )
     
-    print(f"\nTest Accuracy: {test_metrics['accuracy']:.4f}")
-    print(f"Test Loss: {test_metrics['loss']:.4f}")
+    test_acc: float = test_metrics['accuracy']  # type: ignore
+    test_loss: float = test_metrics['loss']  # type: ignore
+    print(f"\nTest Accuracy: {test_acc:.4f}")
+    print(f"Test Loss: {test_loss:.4f}")
     
     # Detailed classification report
     print_classification_report(

@@ -10,16 +10,7 @@ import pandas as pd
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
-# Import graph generators - will be updated after moving graphs.py to ca/
-try:
-    from ca.graphs import CAGraphRepresentation
-except ImportError:
-    # Fallback if graphs.py is still in home directory
-    import sys
-    sys.path.insert(0, '/home/claude')
-    from graphs import CAGraphRepresentation
-
+from ca.graphs import CAGraphRepresentation
 
 class CAMultiViewDataset(Dataset):
     """
@@ -32,14 +23,14 @@ class CAMultiViewDataset(Dataset):
     CLASS_NAMES = ['Homogeneous', 'Stable', 'Propagate', 'Chaotic', 'Complex']
     
     def __init__(self, csv_path, split_indices=None, 
-                 lattice_N=20, dependency_T=4, dependency_W=7):
+                 lattice_N=8, dependency_T=4, dependency_W=7):
         """
         Args:
             csv_path: Path to generated_dataset_100rules_10seeds.csv
             split_indices: Optional indices for train/val/test split
-            lattice_N: Lattice size for view 1
-            dependency_T: Time steps for view 3
-            dependency_W: Width for view 3
+            lattice_N: Lattice size for view 1 (default 8)
+            dependency_T: Time steps for view 3 (default 4)
+            dependency_W: Width for view 3 (default 7)
         """
         self.lattice_N = lattice_N
         self.dependency_T = dependency_T
@@ -67,7 +58,12 @@ class CAMultiViewDataset(Dataset):
         self.prediction_counts = df[count_cols].values if count_cols else None
         
         print(f"Loaded {len(self)} rules from {csv_path}")
-        print(f"Label distribution: {np.bincount(self.labels)}")
+        unique_labels, counts = np.unique(self.labels, return_counts=True)
+        print(f"Unique labels: {unique_labels}")
+        print(f"Label counts: {counts}")
+        print(f"Class names: {self.CLASS_NAMES}")
+        present_classes = [self.CLASS_NAMES[i] for i in unique_labels if i < len(self.CLASS_NAMES)]
+        print(f"Present classes: {present_classes}")
     
     def _extract_labels(self, df):
         """

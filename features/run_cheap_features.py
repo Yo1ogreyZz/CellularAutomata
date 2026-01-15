@@ -5,7 +5,6 @@ from multiprocessing import Pool, cpu_count
 import os
 
 from ca.evolve import evolve_ca_r2
-from ca.init import random_init
 from features.cheap import cheap_features
 
 # Experiment configuration
