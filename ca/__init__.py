@@ -3,19 +3,6 @@
 from . import evolve
 from . import init
 from . import rules
+from . import graphs
 
-# Explicitly export init functions for better IDE support
-from .init import random_init
-
-# Optional imports (may require torch_geometric)
-try:
-    from . import debruijn
-except ImportError:
-    pass
-
-try:
-    from . import simple01
-except ImportError:
-    pass
-
-__all__ = ['evolve', 'init', 'rules', 'random_init']
+__all__ = ['evolve', 'init', 'rules', 'graphs']
