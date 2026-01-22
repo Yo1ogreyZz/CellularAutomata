@@ -19,7 +19,7 @@ from torch_geometric.data import Data
 
 
 # -------------------------------------------------
-# CA utilities (radius = 2 fixed)
+# CA utilities (radius = 2)
 # -------------------------------------------------
 def decode_rule_bits(rule_id: int) -> List[int]:
     """Decode 32-bit truth table"""
