@@ -1,11 +1,17 @@
 """
-symbol0/1 graph builder (radius=2)
+de Bruijn graph builder for radius=2 cellular automata
 
 Preprocessing rules:
 - deduplicate by ruleId
 - keep only: ruleId + className
 - no radius checks
 - output PyG in-memory dataset
+
+Graph definition:
+- Nodes: all length-4 binary contexts (16 nodes)
+- Edges: one per length-5 neighborhood (32 edges)
+- Direction: spatial shift (b0 b1 b2 b3) -> (b1 b2 b3 b4)
+- Edge attribute: rule output c' ∈ {0,1}
 """
 
 import os
@@ -19,14 +25,21 @@ from torch_geometric.data import Data
 
 
 # -------------------------------------------------
-# CA utilities (radius = 2)
+# CA utilities (radius = 2 fixed)
 # -------------------------------------------------
 def decode_rule_bits(rule_id: int) -> List[int]:
     """Decode 32-bit truth table"""
     return [(rule_id >> i) & 1 for i in range(32)]
 
+def bits_to_int(bits: List[int]) -> int:
+    """Convert bit list to integer"""
+    v = 0
+    for b in bits:
+        v = (v << 1) | b
+    return v
+
 def neighborhood_bits(i: int) -> List[int]:
-    """Return [l2, l1, c, r1, r2]"""
+    """Return [b0, b1, b2, b3, b4]"""
     return [(i >> k) & 1 for k in reversed(range(5))]
 
 
@@ -61,40 +74,50 @@ def load_unique_rule_labels(classification_dir: str) -> Dict[int, str]:
 
 
 # -------------------------------------------------
-# Build symbol0/1 graph
+# Build de Bruijn graph (radius=2)
 # -------------------------------------------------
-def build_symbol01_graph(rule_id: int) -> Data:
+def build_debruijn_graph(rule_id: int) -> Data:
     """
     Nodes:
-      0 -> symbol 0
-      1 -> symbol 1
+      16 nodes, each a 4-bit context
 
     Edges:
-      one per neighborhood pattern
-      direction: center -> next_center
-      edge_attr: [l2, l1, r1, r2]
+      32 edges, one per 5-bit neighborhood
+      (b0 b1 b2 b3) -> (b1 b2 b3 b4)
+
+    Edge attribute:
+      c' = rule(b0 b1 b2 b3 b4) ∈ {0,1}
     """
 
     rule_bits = decode_rule_bits(rule_id)
 
-    # node features: one-hot
-    x = torch.tensor([
-        [1.0, 0.0],  # 0
-        [0.0, 1.0],  # 1
-    ], dtype=torch.float)
+    # ----- nodes -----
+    # node feature: explicit 4-bit context (uint8)
+    x = []
+    for i in range(16):
+        bits = [(i >> k) & 1 for k in reversed(range(4))]
+        x.append(bits)
+    x = torch.tensor(x, dtype=torch.uint8)   # [16, 4]
 
+    # ----- edges -----
     src, dst, edge_attr = [], [], []
 
     for i in range(32):
-        l2, l1, c, r1, r2 = neighborhood_bits(i)
-        src.append(c)
-        dst.append(rule_bits[i])
-        edge_attr.append([l2, l1, r1, r2])
+        b0, b1, b2, b3, b4 = neighborhood_bits(i)
+
+        left_node  = bits_to_int([b0, b1, b2, b3])
+        right_node = bits_to_int([b1, b2, b3, b4])
+
+        src.append(left_node)
+        dst.append(right_node)
+
+        # rule output stored on edge
+        edge_attr.append(rule_bits[i])
 
     data = Data(
-    x=x,
-    edge_index=torch.tensor([src, dst], dtype=torch.long),
-    edge_attr=torch.tensor(edge_attr, dtype=torch.uint8),
+        x=x,
+        edge_index=torch.tensor([src, dst], dtype=torch.long),
+        edge_attr=torch.tensor(edge_attr, dtype=torch.uint8).unsqueeze(1),  # [32,1]
     )
 
     data.rule_id = rule_id
@@ -107,19 +130,19 @@ def build_symbol01_graph(rule_id: int) -> Data:
 def main(args):
     rule_label_map = load_unique_rule_labels(args.classification_dir)
 
-    # build label encoding
+    # label encoding
     classes = sorted(set(rule_label_map.values()))
     label_map = {c: i for i, c in enumerate(classes)}
 
     dataset: List[Data] = []
 
     for rule_id, cls in rule_label_map.items():
-        g = build_symbol01_graph(rule_id)
+        g = build_debruijn_graph(rule_id)
         g.y = torch.tensor([label_map[cls]], dtype=torch.long)
         dataset.append(g)
 
     os.makedirs(args.output_dir, exist_ok=True)
-    out_path = os.path.join(args.output_dir, "pyg_radius2_symbol01_dedup.pt")
+    out_path = os.path.join(args.output_dir, "pyg_radius2_debruijn_dedup.pt")
     torch.save(dataset, out_path)
 
     print("✅ Done")
