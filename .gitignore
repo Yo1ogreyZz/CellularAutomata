@@ -1,8 +1,5 @@
-data/
-run_scripts/
-notebooks/
+data/*.json
 logs/
-archive/
 
 __pycache__/
 *.py[cod]
@@ -53,3 +50,12 @@ Thumbs.db
 .DS_Store
 
 *.json
+
+outputs/
+
+*.pbs
+*.sh
+
+tools/
+
+outputs/
