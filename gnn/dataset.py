@@ -12,21 +12,21 @@ CLASS_TO_IDX = {name: i for i, name in enumerate(CLASS_NAMES)}
 
 
 class CAMultiViewDataset(Dataset):
-    """Dataset providing 3 graph views for each CA rule (no lattice)."""
-    
     CLASS_NAMES = CLASS_NAMES
     
-    def __init__(self, data_path, split_indices=None, dependency_T=4, dependency_W=7):
-        """
-        Args:
-            data_path: Path to CSV file or .pt cache file
-            split_indices: Optional indices for train/val/test split
-            dependency_T: Time steps for dependency graph
-            dependency_W: Width for dependency graph
-        """
+    def __init__(self, data_path, split_indices=None, dependency_T=4, dependency_W=7,
+                 filter_classes=None):
         self.dependency_T = dependency_T
         self.dependency_W = dependency_W
+        self.filter_classes = filter_classes
         self.from_cache = data_path.endswith('.pt')
+        
+        # Update class names if filtering
+        if filter_classes is not None:
+            self.CLASS_NAMES = [CLASS_NAMES[i] for i in filter_classes]
+            self.class_map = {old: new for new, old in enumerate(filter_classes)}
+        else:
+            self.class_map = None
         
         if self.from_cache:
             self._load_from_cache(data_path, split_indices)
@@ -37,8 +37,16 @@ class CAMultiViewDataset(Dataset):
         """Load pre-computed PyG graphs from .pt file."""
         samples = torch.load(pt_path, weights_only=False)
         
+        # Filter classes if specified
+        if self.filter_classes is not None:
+            samples = [s for s in samples if s['label'].item() in self.filter_classes]
+            # Remap labels
+            for s in samples:
+                original_label = s['label'].item()
+                s['label'] = torch.tensor(self.class_map[original_label], dtype=torch.long)
+        
         if split_indices is not None:
-            samples = [samples[i] for i in split_indices]
+            samples = [samples[i] for i in split_indices if i < len(samples)]
         
         self.samples = samples
         self.rule_ids = [s['rule_id'].item() for s in samples]
@@ -47,7 +55,6 @@ class CAMultiViewDataset(Dataset):
         self._print_stats(pt_path)
     
     def _load_from_csv(self, csv_path, split_indices):
-        """Load from CSV, generate graphs on-the-fly."""
         df = pd.read_csv(csv_path)
         
         if split_indices is not None:
@@ -56,6 +63,14 @@ class CAMultiViewDataset(Dataset):
         self.samples = None  # generate on-the-fly
         self.rule_ids = df['ruleId'].values
         self.labels = self._extract_labels(df)
+        
+        # Filter classes if specified
+        if self.filter_classes is not None:
+            mask = np.isin(self.labels, self.filter_classes)
+            self.rule_ids = self.rule_ids[mask]
+            self.labels = self.labels[mask]
+            # Remap labels
+            self.labels = np.array([self.class_map[l] for l in self.labels])
         
         self._print_stats(csv_path)
     
@@ -74,7 +89,7 @@ class CAMultiViewDataset(Dataset):
     def _print_stats(self, path):
         print(f"Loaded {len(self)} samples from {path}")
         unique, counts = np.unique(self.labels, return_counts=True)
-        dist = {CLASS_NAMES[i]: c for i, c in zip(unique, counts)}
+        dist = {self.CLASS_NAMES[i]: c for i, c in zip(unique, counts)}
         print(f"Distribution: {dist}")
     
     def __len__(self):
@@ -82,7 +97,6 @@ class CAMultiViewDataset(Dataset):
     
     def __getitem__(self, idx):
         if self.samples is not None:
-            # from cache
             return self.samples[idx]
         
         # generate on-the-fly
@@ -102,9 +116,20 @@ class CAMultiViewDataset(Dataset):
         }
 
 
-def create_splits(csv_path, train_ratio=0.7, val_ratio=0.15, seed=42):
+def create_splits(csv_path, train_ratio=0.7, val_ratio=0.15, seed=42, filter_classes=None):
     df = pd.read_csv(csv_path)
-    n = len(df)
+    
+    if filter_classes is not None:
+        if 'className' in df.columns:
+            labels = np.array([CLASS_TO_IDX[c] for c in df['className'].values])
+        else:
+            count_cols = ['count_Homogeneous', 'count_Stable', 'count_Propagate', 
+                          'count_Chaotic', 'count_Complex']
+            labels = np.argmax(df[count_cols].values, axis=1)
+        mask = np.isin(labels, filter_classes)
+        n = mask.sum()
+    else:
+        n = len(df)
     
     indices = np.arange(n)
     np.random.seed(seed)
@@ -116,7 +141,7 @@ def create_splits(csv_path, train_ratio=0.7, val_ratio=0.15, seed=42):
     return indices[:n_train], indices[n_train:n_train + n_val], indices[n_train + n_val:]
 
 
-def create_stratified_splits(csv_path, train_ratio=0.7, val_ratio=0.15, seed=42):
+def create_stratified_splits(csv_path, train_ratio=0.7, val_ratio=0.15, seed=42, filter_classes=None):
     """Stratified split for class imbalance."""
     from sklearn.model_selection import train_test_split
     
@@ -129,7 +154,21 @@ def create_stratified_splits(csv_path, train_ratio=0.7, val_ratio=0.15, seed=42)
                       'count_Chaotic', 'count_Complex']
         labels = np.argmax(df[count_cols].values, axis=1)
     
-    indices = np.arange(len(df))
+    # Filter and remap if specified
+    if filter_classes is not None:
+        if isinstance(labels[0], str):
+            mask = np.array([CLASS_TO_IDX[c] in filter_classes for c in labels])
+            labels = labels[mask]
+            class_map = {old: new for new, old in enumerate(filter_classes)}
+            labels = np.array([class_map[CLASS_TO_IDX[c]] for c in labels])
+        else:
+            mask = np.isin(labels, filter_classes)
+            labels = labels[mask]
+            class_map = {old: new for new, old in enumerate(filter_classes)}
+            labels = np.array([class_map[l] for l in labels])
+        indices = np.arange(len(labels))
+    else:
+        indices = np.arange(len(df))
     
     train_idx, temp_idx = train_test_split(
         indices, train_size=train_ratio, stratify=labels, random_state=seed
@@ -156,22 +195,37 @@ def custom_collate_fn(batch):
     }
 
 
-def get_class_weights(data_path):
-    """Compute class weights for imbalanced data."""
+def get_class_weights(data_path, filter_classes=None):
     if data_path.endswith('.pt'):
         samples = torch.load(data_path, weights_only=False)
-        labels = [s['label'].item() for s in samples]
+        if filter_classes is not None:
+            samples = [s for s in samples if s['label'].item() in filter_classes]
+            class_map = {old: new for new, old in enumerate(filter_classes)}
+            labels = [class_map[s['label'].item()] for s in samples]
+            n_classes = len(filter_classes)
+        else:
+            labels = [s['label'].item() for s in samples]
+            n_classes = 5
     else:
         df = pd.read_csv(data_path)
         if 'className' in df.columns:
-            labels = [CLASS_TO_IDX[c] for c in df['className'].values]
+            all_labels = [CLASS_TO_IDX[c] for c in df['className'].values]
         else:
             count_cols = ['count_Homogeneous', 'count_Stable', 'count_Propagate', 
                           'count_Chaotic', 'count_Complex']
-            labels = np.argmax(df[count_cols].values, axis=1).tolist()
+            all_labels = np.argmax(df[count_cols].values, axis=1).tolist()
+        
+        if filter_classes is not None:
+            labels = [l for l in all_labels if l in filter_classes]
+            class_map = {old: new for new, old in enumerate(filter_classes)}
+            labels = [class_map[l] for l in labels]
+            n_classes = len(filter_classes)
+        else:
+            labels = all_labels
+            n_classes = 5
     
-    counts = np.bincount(labels, minlength=5)
+    counts = np.bincount(labels, minlength=n_classes)
     weights = 1.0 / (counts + 1e-6)
-    weights = weights / weights.sum() * len(CLASS_NAMES)
+    weights = weights / weights.sum() * n_classes
     
     return torch.tensor(weights, dtype=torch.float)

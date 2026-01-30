@@ -15,14 +15,18 @@ from gnn.model import MultiViewGAT
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train Multi-View GAT (3 views)')
+    parser = argparse.ArgumentParser(description='Train Multi-View GAT')
     
-    # Data - supports both CSV and .pt cache
+    # Data
     parser.add_argument('--data_path', type=str, required=True, help='CSV or .pt file')
     parser.add_argument('--train_ratio', type=float, default=0.7)
     parser.add_argument('--val_ratio', type=float, default=0.15)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--stratified', action='store_true', help='Stratified split')
+    
+    # Class filtering for testing
+    parser.add_argument('--filter_classes', type=str, default=None,
+                        help='Comma-separated class indices to keep (e.g., "2,3" for Propagate,Chaotic binary)')
     
     # Model
     parser.add_argument('--hidden_dim', type=int, default=32)
@@ -30,7 +34,7 @@ def parse_args():
     parser.add_argument('--heads', type=int, default=2)
     parser.add_argument('--dropout', type=float, default=0.3)
     
-    # Graph params (only for CSV, ignored for .pt)
+    # Graph params
     parser.add_argument('--dependency_T', type=int, default=4)
     parser.add_argument('--dependency_W', type=int, default=7)
     
@@ -120,14 +124,22 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     os.makedirs(args.output_dir, exist_ok=True)
     
+    # Parse filter_classes
+    filter_classes = None
+    if args.filter_classes is not None:
+        filter_classes = [int(x) for x in args.filter_classes.split(',')]
+        print(f"Filtering to classes: {[CLASS_NAMES[i] for i in filter_classes]}")
+    
     print(f"Device: {device}")
     print(f"Data: {args.data_path}")
     
-    # For .pt files, we need a CSV for splitting (or split the .pt directly)
+    # Create splits
     is_cached = args.data_path.endswith('.pt')
     
     if is_cached:
         samples = torch.load(args.data_path, weights_only=False)
+        if filter_classes is not None:
+            samples = [s for s in samples if s['label'].item() in filter_classes]
         n = len(samples)
         indices = np.arange(n)
         np.random.seed(args.seed)
@@ -140,16 +152,20 @@ def main():
     else:
         if args.stratified:
             train_idx, val_idx, test_idx = create_stratified_splits(
-                args.data_path, args.train_ratio, args.val_ratio, args.seed
+                args.data_path, args.train_ratio, args.val_ratio, args.seed, filter_classes
             )
         else:
             train_idx, val_idx, test_idx = create_splits(
-                args.data_path, args.train_ratio, args.val_ratio, args.seed
+                args.data_path, args.train_ratio, args.val_ratio, args.seed, filter_classes
             )
     
     print(f"Split: train={len(train_idx)}, val={len(val_idx)}, test={len(test_idx)}")
     
-    ds_kwargs = {'dependency_T': args.dependency_T, 'dependency_W': args.dependency_W}
+    ds_kwargs = {
+        'dependency_T': args.dependency_T, 
+        'dependency_W': args.dependency_W,
+        'filter_classes': filter_classes
+    }
     
     train_dataset = CAMultiViewDataset(args.data_path, split_indices=train_idx, **ds_kwargs)
     val_dataset = CAMultiViewDataset(args.data_path, split_indices=val_idx, **ds_kwargs)
@@ -170,13 +186,16 @@ def main():
     
     class_weights = None
     if args.class_weights:
-        class_weights = get_class_weights(args.data_path).to(device)
+        class_weights = get_class_weights(args.data_path, filter_classes).to(device)
         print(f"Class weights: {class_weights.cpu().numpy().round(3)}")
+    
+    # Determine num_classes
+    num_classes = len(filter_classes) if filter_classes is not None else len(CLASS_NAMES)
     
     model = MultiViewGAT(
         hidden_dim=args.hidden_dim,
         embedding_dim=args.embedding_dim,
-        num_classes=len(CLASS_NAMES),
+        num_classes=num_classes,
         heads=args.heads,
         dropout=args.dropout
     ).to(device)
@@ -220,13 +239,23 @@ def main():
     print(f"Best Val Acc: {best_val_acc:.4f}")
     print(f"Test Acc: {test_metrics['accuracy']:.4f}")
     
+    # Per-class results
     preds, labels = test_metrics['preds'], test_metrics['labels']
+    class_names = train_dataset.CLASS_NAMES
     print("\nPer-class:")
-    for i, name in enumerate(CLASS_NAMES):
+    for i, name in enumerate(class_names):
         mask = labels == i
         if mask.sum() > 0:
             acc = (preds[mask] == labels[mask]).mean()
             print(f"  {name}: {acc:.4f} (n={mask.sum()})")
+    
+    # Confusion matrix
+    from sklearn.metrics import confusion_matrix
+    cm = confusion_matrix(labels, preds)
+    print("\nConfusion Matrix:")
+    print("Pred ->", " ".join(f"{name:>10s}" for name in class_names))
+    for i, name in enumerate(class_names):
+        print(f"{name:>10s}", " ".join(f"{cm[i,j]:>10d}" for j in range(len(class_names))))
     
     torch.save(model.state_dict(), os.path.join(args.output_dir, 'final_model.pt'))
 
