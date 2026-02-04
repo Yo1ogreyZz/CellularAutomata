@@ -1,5 +1,5 @@
 """
-Enhanced Dependency Graph builder for radius=2 CA (ring + strength) -> Standard PyG InMemoryDataset
+Enhanced Dependency Graph builder for radius=2 CA (ring + strength) -> Standard PyG InMemoryDataset (5-class fixed)
 
 Nodes: 6
   0..4 : input positions [-2,-1,0,+1,+2]
@@ -12,8 +12,8 @@ Edges:
       pos -> 5 with strength in [0,1]
       strength = (#assignments where flipping pos changes output) / 16
 
-Node features x (float32):
-  [type_onehot(2) || pos_onehot(5)]  -> dim = 7
+Node features x (float32), dim=7:
+  [type_onehot(2) || pos_onehot(5)]
     input nodes: type=[1,0], pos onehot
     output node: type=[0,1], pos all zeros
 
@@ -25,17 +25,37 @@ Edge features edge_attr (float32), dim=3:
 Output:
   processed/data.pt = (data, slices)
   processed/meta.pt = {classes,label_map}
+
+Fixed label mapping (5 classes):
+  0 -> Class1-Homogeneous
+  1 -> Class2-Propagate
+  2 -> Class2-Stable
+  3 -> Class3-Chaotic
+  4 -> Class4-Complex
 """
 
 import os
 import glob
 import json
 import argparse
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data, InMemoryDataset
+
+
+# -------------------------------------------------
+# Fixed 5-class mapping (IMPORTANT)
+# -------------------------------------------------
+CLASSES_5 = [
+    "Class1-Homogeneous",
+    "Class2-Propagate",
+    "Class2-Stable",
+    "Class3-Chaotic",
+    "Class4-Complex",
+]
+LABEL_MAP_5 = {c: i for i, c in enumerate(CLASSES_5)}
 
 
 # -------------------------
@@ -52,6 +72,10 @@ def bits5_to_index(b0: int, b1: int, b2: int, b3: int, b4: int) -> int:
 # Load + deduplicate records
 # -------------------------
 def load_unique_rule_labels(classification_dir: str) -> Dict[int, str]:
+    """
+    Returns {ruleId: className}. First occurrence wins.
+    Assumption: JSON contains only these 5 class names.
+    """
     rule_map: Dict[int, str] = {}
     paths = sorted(glob.glob(os.path.join(classification_dir, "*.json")))
     if not paths:
@@ -157,6 +181,7 @@ class Radius2DependencyDataset(InMemoryDataset):
     def __init__(self, root: str, classification_dir: str, transform=None, pre_transform=None, pre_filter=None):
         self.classification_dir = classification_dir
         super().__init__(root, transform, pre_transform, pre_filter)
+
         self.data, self.slices = torch.load(self.processed_paths[0], weights_only=False)
         meta = torch.load(self.processed_paths[1], weights_only=False)
         self.classes = meta["classes"]
@@ -173,11 +198,13 @@ class Radius2DependencyDataset(InMemoryDataset):
     def process(self):
         rule_label_map = load_unique_rule_labels(self.classification_dir)
 
-        classes = sorted(set(rule_label_map.values()))
-        label_map = {c: i for i, c in enumerate(classes)}
+        # ✅ fixed mapping (5-class)
+        classes = CLASSES_5
+        label_map = LABEL_MAP_5
 
         data_list: List[Data] = []
         for rule_id, cls in rule_label_map.items():
+            # assumption: cls always in LABEL_MAP_5
             g = build_dependency_graph(rule_id)
             g.y = torch.tensor([label_map[cls]], dtype=torch.long)
             g.class_name = cls  # debug
@@ -203,20 +230,19 @@ def main():
 
     print("✅ Done")
     print("graphs        :", len(ds))
-    print("classes       :", len(ds.classes))
+    print("classes       :", len(ds.classes), ds.classes)
     print("processed dir :", ds.processed_dir)
 
     g0 = ds[0]
     print("\n--- sample[0] ---")
     print(g0)
-    print("x shape       :", tuple(g0.x.shape))          # (6,7)
+    print("x shape       :", tuple(g0.x.shape))            # (6,7)
     print("edge_index    :", tuple(g0.edge_index.shape))
-    print("edge_attr     :", tuple(g0.edge_attr.shape))  # (~(10 + dep_edges), 3)
+    print("edge_attr     :", tuple(g0.edge_attr.shape))   # (~(10 + dep_edges), 3)
     print("rule_id       :", int(g0.rule_id.item()))
     print("y             :", int(g0.y.item()))
     print("class_name    :", getattr(g0, "class_name", None))
 
-    # quick sanity: count edge types
     etype = g0.edge_attr[:, 0]
     ring_n = int((etype == 0).sum().item())
     dep_n = int((etype == 1).sum().item())

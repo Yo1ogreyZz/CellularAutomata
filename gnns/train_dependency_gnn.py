@@ -172,7 +172,7 @@ def macro_f1_from_cm(cm: torch.Tensor) -> float:
 
 
 @torch.no_grad()
-def evaluate(model, loader, device, num_classes: int):
+def evaluate(model, loader, device, num_classes: int, class_weight=None):
     model.eval()
     total, correct, loss_sum = 0, 0, 0.0
     all_pred, all_true = [], []
@@ -180,7 +180,7 @@ def evaluate(model, loader, device, num_classes: int):
     for data in loader:
         data = data.to(device)
         logits = model(data)
-        loss = F.cross_entropy(logits, data.y.view(-1))
+        loss = F.cross_entropy(logits, data.y.view(-1), weight=class_weight)
         loss_sum += loss.detach().item() * data.num_graphs
 
         pred = logits.argmax(dim=-1)
@@ -220,7 +220,7 @@ def pretty_print_cm(cm: torch.Tensor, class_names=None):
 
 
 # -------------------------
-# 5) main：训练 dependency（与 dbg/symbol01 对齐）
+# 5) main：训练 dependency（带 class weight）
 # -------------------------
 def main():
     parser = argparse.ArgumentParser()
@@ -269,6 +269,16 @@ def main():
     print("class counts (val)  :", val_counts.tolist(), flush=True)
     print("class counts (test) :", test_counts.tolist(), flush=True)
 
+    # -------------------------
+    # ✅ class weights (based on TRAIN only)
+    # -------------------------
+    train_y = train_ds.y.view(-1).to(torch.long)
+    counts = torch.bincount(train_y, minlength=num_classes).float()
+    class_weight = (counts.sum() / (counts + 1e-6))
+    class_weight = class_weight / class_weight.mean()
+    class_weight = class_weight.to(device)
+    print("class_weight:", [round(x, 3) for x in class_weight.detach().cpu().tolist()], flush=True)
+
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
     test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False)
@@ -287,7 +297,7 @@ def main():
             data = data.to(device)
             optim.zero_grad()
             logits = model(data)
-            loss = F.cross_entropy(logits, data.y.view(-1))
+            loss = F.cross_entropy(logits, data.y.view(-1), weight=class_weight)
             loss.backward()
             optim.step()
 
@@ -295,7 +305,7 @@ def main():
             total += data.num_graphs
 
         train_loss = loss_sum / max(total, 1)
-        val_loss, val_acc, val_mf1, _ = evaluate(model, val_loader, device, num_classes)
+        val_loss, val_acc, val_mf1, _ = evaluate(model, val_loader, device, num_classes, class_weight)
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
@@ -311,7 +321,7 @@ def main():
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    test_loss, test_acc, test_mf1, test_cm = evaluate(model, test_loader, device, num_classes)
+    test_loss, test_acc, test_mf1, test_cm = evaluate(model, test_loader, device, num_classes, class_weight)
 
     print(f"\n✅ best_val_acc : {best_val_acc:.3f}", flush=True)
     print(f"✅ test_loss    : {test_loss:.4f}", flush=True)

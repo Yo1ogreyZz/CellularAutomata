@@ -101,12 +101,6 @@ def stratified_split_indices(
     test_ratio: float,
     seed: int
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """
-    y: [N] long
-    返回: train_idx, val_idx, test_idx (都是 long tensor)
-    规则：对每个类别分别打乱后按比例切分，再合并。
-    注意：如果某类样本很少，val/test 可能会拿不到（会尽力分配）。
-    """
     assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-6
 
     g = torch.Generator()
@@ -125,7 +119,6 @@ def stratified_split_indices(
         n_train = int(round(train_ratio * n_c))
         n_val = int(round(val_ratio * n_c))
 
-        # 保证不会超过
         n_train = min(n_train, n_c)
         n_val = min(n_val, n_c - n_train)
         n_test = n_c - n_train - n_val
@@ -138,7 +131,6 @@ def stratified_split_indices(
     val_idx = torch.cat(val_ids, dim=0)
     test_idx = torch.cat(test_ids, dim=0)
 
-    # 再整体打乱一次（可选）
     train_idx = train_idx[torch.randperm(train_idx.numel(), generator=g)]
     val_idx = val_idx[torch.randperm(val_idx.numel(), generator=g)]
     test_idx = test_idx[torch.randperm(test_idx.numel(), generator=g)]
@@ -147,7 +139,6 @@ def stratified_split_indices(
 
 
 def count_by_class(y: torch.Tensor, num_classes: int) -> torch.Tensor:
-    """返回每类数量 [C]"""
     return torch.bincount(y, minlength=num_classes)
 
 
@@ -156,10 +147,6 @@ def count_by_class(y: torch.Tensor, num_classes: int) -> torch.Tensor:
 # -------------------------
 @torch.no_grad()
 def confusion_matrix(pred: torch.Tensor, target: torch.Tensor, num_classes: int) -> torch.Tensor:
-    """
-    pred/target: [N] long
-    返回: [C, C]，行是真实类，列是预测类
-    """
     cm = torch.zeros((num_classes, num_classes), dtype=torch.long)
     for t, p in zip(target.view(-1), pred.view(-1)):
         cm[int(t), int(p)] += 1
@@ -168,10 +155,6 @@ def confusion_matrix(pred: torch.Tensor, target: torch.Tensor, num_classes: int)
 
 @torch.no_grad()
 def macro_f1_from_cm(cm: torch.Tensor) -> float:
-    """
-    cm: [C,C] 行true 列pred
-    macro-F1 = 平均每类F1（忽略该类 support=0 的情况）
-    """
     C = cm.size(0)
     f1s = []
     for k in range(C):
@@ -179,7 +162,6 @@ def macro_f1_from_cm(cm: torch.Tensor) -> float:
         fp = cm[:, k].sum().item() - tp
         fn = cm[k, :].sum().item() - tp
 
-        # support=0 的类跳过
         support = cm[k, :].sum().item()
         if support == 0:
             continue
@@ -193,7 +175,7 @@ def macro_f1_from_cm(cm: torch.Tensor) -> float:
 
 
 @torch.no_grad()
-def evaluate(model, loader, device, num_classes: int):
+def evaluate(model, loader, device, num_classes: int, class_weight=None):
     model.eval()
     total, correct, loss_sum = 0, 0, 0.0
 
@@ -203,7 +185,7 @@ def evaluate(model, loader, device, num_classes: int):
     for data in loader:
         data = data.to(device)
         logits = model(data)
-        loss = F.cross_entropy(logits, data.y.view(-1))
+        loss = F.cross_entropy(logits, data.y.view(-1), weight=class_weight)
         loss_sum += loss.detach().item() * data.num_graphs
 
         pred = logits.argmax(dim=-1)
@@ -228,9 +210,6 @@ def evaluate(model, loader, device, num_classes: int):
 
 
 def pretty_print_cm(cm: torch.Tensor, class_names=None):
-    """
-    简单打印 confusion matrix（行true列pred）
-    """
     C = cm.size(0)
     header = ["true\\pred"] + [str(i) for i in range(C)]
     if class_names is not None and len(class_names) == C:
@@ -259,7 +238,6 @@ def main():
     parser.add_argument("--hidden", type=int, default=64)
     args = parser.parse_args()
 
-    # 更稳：也固定 cuda
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
 
@@ -273,7 +251,6 @@ def main():
     in_dim = sample.x.size(-1)
     edge_dim = sample.edge_attr.size(-1)
 
-    # 更稳：从 ds.y 算类别数（不碰 ds.data）
     all_y = ds.y.view(-1).cpu()
     num_classes = int(torch.unique(all_y).numel())
     class_names = ds.classes if (getattr(ds, "classes", None) is not None and len(ds.classes) == num_classes) else None
@@ -297,14 +274,24 @@ def main():
 
     print("split sizes:", len(train_ds), len(val_ds), len(test_ds), flush=True)
 
-    # 打印分布
+    # 分布
     train_counts = count_by_class(train_ds.y.view(-1).cpu(), num_classes)
-    val_counts   = count_by_class(val_ds.y.view(-1).cpu(), num_classes)
-    test_counts  = count_by_class(test_ds.y.view(-1).cpu(), num_classes)
+    val_counts = count_by_class(val_ds.y.view(-1).cpu(), num_classes)
+    test_counts = count_by_class(test_ds.y.view(-1).cpu(), num_classes)
 
     print("class counts (train):", train_counts.tolist(), flush=True)
     print("class counts (val)  :", val_counts.tolist(), flush=True)
     print("class counts (test) :", test_counts.tolist(), flush=True)
+
+    # -------------------------
+    # ✅ class weights (based on TRAIN only)
+    # -------------------------
+    train_y = train_ds.y.view(-1).to(torch.long)
+    counts = torch.bincount(train_y, minlength=num_classes).float()
+    class_weight = (counts.sum() / (counts + 1e-6))
+    class_weight = class_weight / class_weight.mean()
+    class_weight = class_weight.to(device)
+    print("class_weight:", [round(x, 3) for x in class_weight.detach().cpu().tolist()], flush=True)
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
@@ -328,7 +315,7 @@ def main():
             data = data.to(device)
             optim.zero_grad()
             logits = model(data)
-            loss = F.cross_entropy(logits, data.y.view(-1))
+            loss = F.cross_entropy(logits, data.y.view(-1), weight=class_weight)
             loss.backward()
             optim.step()
 
@@ -337,7 +324,7 @@ def main():
 
         train_loss = loss_sum / max(total, 1)
 
-        val_loss, val_acc, val_mf1, _ = evaluate(model, val_loader, device, num_classes)
+        val_loss, val_acc, val_mf1, _ = evaluate(model, val_loader, device, num_classes, class_weight)
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
@@ -356,7 +343,7 @@ def main():
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    test_loss, test_acc, test_mf1, test_cm = evaluate(model, test_loader, device, num_classes)
+    test_loss, test_acc, test_mf1, test_cm = evaluate(model, test_loader, device, num_classes, class_weight)
 
     print(f"\n✅ best_val_acc : {best_val_acc:.3f}", flush=True)
     print(f"✅ test_loss    : {test_loss:.4f}", flush=True)

@@ -43,7 +43,6 @@ class LoadProcessed(InMemoryDataset):
 def build_rule_index(ds: InMemoryDataset) -> Dict[int, Data]:
     m = {}
     for g in ds:
-        # g.rule_id 是 tensor([id]) 或 int
         rid = int(g.rule_id.item()) if torch.is_tensor(g.rule_id) else int(g.rule_id)
         m[rid] = g
     return m
@@ -125,19 +124,11 @@ class MultiViewRuleDataset(Dataset):
         g_dbg = self.dbg_map[rid]
         g_sym = self.sym_map[rid]
         g_dep = self.dep_map[rid]
-        # y 在三者应该一致（同一个 rule）
         y = int(g_dbg.y.item())
         return rid, g_dbg, g_sym, g_dep, y
 
 
 def collate_multiview(batch):
-    """
-    batch: list of (rid, g_dbg, g_sym, g_dep, y)
-    return:
-      rule_ids tensor [B]
-      Batch for dbg/sym/dep
-      y tensor [B]
-    """
     rids = torch.tensor([b[0] for b in batch], dtype=torch.long)
     dbg_list = [b[1] for b in batch]
     sym_list = [b[2] for b in batch]
@@ -152,7 +143,7 @@ def collate_multiview(batch):
 
 
 # -------------------------
-# 4) Encoder：和你之前一致（GINEConv + pooling），输出图 embedding
+# 4) Encoder：GINEConv + pooling -> 图 embedding
 # -------------------------
 class GINEEncoder(nn.Module):
     def __init__(self, in_dim, edge_dim, hidden=64, dropout=0.2):
@@ -191,7 +182,7 @@ class GINEEncoder(nn.Module):
         x = self.conv3(x, edge_index, e)
         x = F.relu(x)
 
-        g = global_mean_pool(x, batch)  # [B, hidden]
+        g = global_mean_pool(x, batch)
         return g
 
 
@@ -222,14 +213,12 @@ class FusionClassifier(nn.Module):
         h_dbg = self.enc_dbg(dbg_batch)
         h_sym = self.enc_sym(sym_batch)
         h_dep = self.enc_dep(dep_batch)
-
         h = torch.cat([h_dbg, h_sym, h_dep], dim=-1)
-        logits = self.classifier(h)
-        return logits
+        return self.classifier(h)
 
 
 # -------------------------
-# 6) 指标：confusion matrix + macro-F1（与你之前一致）
+# 6) 指标：confusion matrix + macro-F1
 # -------------------------
 @torch.no_grad()
 def confusion_matrix(pred: torch.Tensor, target: torch.Tensor, num_classes: int) -> torch.Tensor:
@@ -259,7 +248,7 @@ def macro_f1_from_cm(cm: torch.Tensor) -> float:
 
 
 @torch.no_grad()
-def evaluate(model, loader, device, num_classes: int):
+def evaluate(model, loader, device, num_classes: int, class_weight=None):
     model.eval()
     total, correct, loss_sum = 0, 0, 0.0
     all_pred, all_true = [], []
@@ -271,7 +260,7 @@ def evaluate(model, loader, device, num_classes: int):
         y = y.to(device)
 
         logits = model(dbg_b, sym_b, dep_b)
-        loss = F.cross_entropy(logits, y)
+        loss = F.cross_entropy(logits, y, weight=class_weight)
         loss_sum += loss.detach().item() * y.size(0)
 
         pred = logits.argmax(dim=-1)
@@ -309,7 +298,7 @@ def pretty_print_cm(cm: torch.Tensor, class_names=None):
 
 
 # -------------------------
-# 7) main：融合训练
+# 7) main：融合训练（✅加 class weight）
 # -------------------------
 def main():
     parser = argparse.ArgumentParser()
@@ -329,29 +318,23 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("device:", device, flush=True)
 
-    # load three datasets
     ds_dbg = LoadProcessed(args.dbg_root)
     ds_sym = LoadProcessed(args.sym_root)
     ds_dep = LoadProcessed(args.dep_root)
 
-    # class names（以 dbg 的 meta 为准）
     class_names = ds_dbg.classes
 
-    # build rule_id -> Data maps
     dbg_map = build_rule_index(ds_dbg)
     sym_map = build_rule_index(ds_sym)
     dep_map = build_rule_index(ds_dep)
 
-    # align by rule_id intersection
     rule_ids = intersect_rule_ids(dbg_map, sym_map, dep_map)
     print("aligned rules:", len(rule_ids), flush=True)
 
-    # build y vector aligned to rule_ids (use dbg y)
     y_all = torch.tensor([int(dbg_map[r].y.item()) for r in rule_ids], dtype=torch.long)
     num_classes = int(torch.unique(y_all).numel())
     print("num_classes:", num_classes, flush=True)
 
-    # stratified split on aligned rule list indices
     train_idx, val_idx, test_idx = stratified_split_indices(
         y=y_all, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, seed=args.seed
     )
@@ -362,7 +345,6 @@ def main():
 
     print("split sizes:", len(train_rules), len(val_rules), len(test_rules), flush=True)
 
-    # print class counts (from y_all indices)
     train_counts = count_by_class(y_all[train_idx], num_classes)
     val_counts   = count_by_class(y_all[val_idx], num_classes)
     test_counts  = count_by_class(y_all[test_idx], num_classes)
@@ -370,15 +352,27 @@ def main():
     print("class counts (val)  :", val_counts.tolist(), flush=True)
     print("class counts (test) :", test_counts.tolist(), flush=True)
 
+    # ✅ class weights (TRAIN only, normalize by mean)
+    counts = train_counts.float()
+    class_weight = (counts.sum() / (counts + 1e-6))
+    class_weight = class_weight / class_weight.mean()
+    class_weight = class_weight.to(device)
+    print("class_weight:", [round(x, 3) for x in class_weight.detach().cpu().tolist()], flush=True)
+
     train_set = MultiViewRuleDataset(train_rules, dbg_map, sym_map, dep_map)
     val_set   = MultiViewRuleDataset(val_rules, dbg_map, sym_map, dep_map)
     test_set  = MultiViewRuleDataset(test_rules, dbg_map, sym_map, dep_map)
 
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=args.batch_size, shuffle=True, collate_fn=collate_multiview)
-    val_loader   = torch.utils.data.DataLoader(val_set, batch_size=args.batch_size, shuffle=False, collate_fn=collate_multiview)
-    test_loader  = torch.utils.data.DataLoader(test_set, batch_size=args.batch_size, shuffle=False, collate_fn=collate_multiview)
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size=args.batch_size, shuffle=True, collate_fn=collate_multiview
+    )
+    val_loader = torch.utils.data.DataLoader(
+        val_set, batch_size=args.batch_size, shuffle=False, collate_fn=collate_multiview
+    )
+    test_loader = torch.utils.data.DataLoader(
+        test_set, batch_size=args.batch_size, shuffle=False, collate_fn=collate_multiview
+    )
 
-    # infer dims from any aligned rule
     r0 = rule_ids[0]
     dbg_in_dim = dbg_map[r0].x.size(-1)
     dbg_edge_dim = dbg_map[r0].edge_attr.size(-1)
@@ -418,7 +412,7 @@ def main():
 
             optim.zero_grad()
             logits = model(dbg_b, sym_b, dep_b)
-            loss = F.cross_entropy(logits, y)
+            loss = F.cross_entropy(logits, y, weight=class_weight)
             loss.backward()
             optim.step()
 
@@ -426,7 +420,7 @@ def main():
             total += y.size(0)
 
         train_loss = loss_sum / max(total, 1)
-        val_loss, val_acc, val_mf1, _ = evaluate(model, val_loader, device, num_classes)
+        val_loss, val_acc, val_mf1, _ = evaluate(model, val_loader, device, num_classes, class_weight)
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
@@ -442,7 +436,7 @@ def main():
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    test_loss, test_acc, test_mf1, test_cm = evaluate(model, test_loader, device, num_classes)
+    test_loss, test_acc, test_mf1, test_cm = evaluate(model, test_loader, device, num_classes, class_weight)
 
     print(f"\n✅ best_val_acc : {best_val_acc:.3f}", flush=True)
     print(f"✅ test_loss    : {test_loss:.4f}", flush=True)
