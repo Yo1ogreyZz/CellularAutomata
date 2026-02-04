@@ -156,18 +156,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765089948762,
-    "timestamp": "12/7/2025, 2:45:48 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 789921418,
-    "seed": 30580,
-    "steps": 9730,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765089939868,
     "timestamp": "12/7/2025, 2:45:39 PM",
     "className": "Class2-Propagate",
@@ -792,18 +780,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765089488739,
-    "timestamp": "12/7/2025, 2:38:08 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 350296946,
-    "seed": 16680,
-    "steps": 9730,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765089466400,
     "timestamp": "12/7/2025, 2:37:46 PM",
     "className": "Class2-Propagate",
@@ -918,18 +894,6 @@
     "radius": 2,
     "ruleId": 473347039,
     "seed": 86800,
-    "steps": 9730,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765089308130,
-    "timestamp": "12/7/2025, 2:35:08 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 9887381,
-    "seed": 70462,
     "steps": 9730,
     "width": 350,
     "density": 0.5,
@@ -1116,18 +1080,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765089105941,
-    "timestamp": "12/7/2025, 2:31:45 PM",
-    "className": "Class2-IC-Period",
-    "radius": 2,
-    "ruleId": 3211905781,
-    "seed": 30578,
-    "steps": 9730,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765089077035,
     "timestamp": "12/7/2025, 2:31:17 PM",
     "className": "Class2-Propagate",
@@ -1170,18 +1122,6 @@
     "radius": 2,
     "ruleId": 331743816,
     "seed": 93239,
-    "steps": 9730,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765089055458,
-    "timestamp": "12/7/2025, 2:30:55 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 1446175457,
-    "seed": 38243,
     "steps": 9730,
     "width": 350,
     "density": 0.5,
@@ -1560,18 +1500,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765088869040,
-    "timestamp": "12/7/2025, 2:27:49 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 1830807098,
-    "seed": 97272,
-    "steps": 9730,
-    "width": 450,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765088828886,
     "timestamp": "12/7/2025, 2:27:08 PM",
     "className": "Class4-Complex",
@@ -1788,30 +1716,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765088659956,
-    "timestamp": "12/7/2025, 2:24:19 PM",
-    "className": "Class2-IC-Period",
-    "radius": 2,
-    "ruleId": 3185318049,
-    "seed": 76729,
-    "steps": 9170,
-    "width": 250,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765088638082,
-    "timestamp": "12/7/2025, 2:23:58 PM",
-    "className": "Class2-IC-Period",
-    "radius": 2,
-    "ruleId": 2948472087,
-    "seed": 5644,
-    "steps": 9170,
-    "width": 250,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765088604397,
     "timestamp": "12/7/2025, 2:23:24 PM",
     "className": "Class2-Stable",
@@ -1968,18 +1872,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765088465842,
-    "timestamp": "12/7/2025, 2:21:05 PM",
-    "className": "Class2-IC-Period",
-    "radius": 2,
-    "ruleId": 2475582152,
-    "seed": 96113,
-    "steps": 9170,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765088432828,
     "timestamp": "12/7/2025, 2:20:32 PM",
     "className": "Class2-Stable",
@@ -2064,30 +1956,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765088369012,
-    "timestamp": "12/7/2025, 2:19:29 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 3257786163,
-    "seed": 56887,
-    "steps": 9170,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765088358936,
-    "timestamp": "12/7/2025, 2:19:18 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 4244128438,
-    "seed": 50445,
-    "steps": 9170,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765088345627,
     "timestamp": "12/7/2025, 2:19:05 PM",
     "className": "Class4-Complex",
@@ -2129,18 +1997,6 @@
     "className": "Class3-Chaotic",
     "radius": 2,
     "ruleId": 3185180719,
-    "seed": 70565,
-    "steps": 9170,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765088290803,
-    "timestamp": "12/7/2025, 2:18:10 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 2705923213,
     "seed": 70565,
     "steps": 9170,
     "width": 350,
@@ -2275,18 +2131,6 @@
     "ruleId": 1307859713,
     "seed": 23073,
     "steps": 7050,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765088126331,
-    "timestamp": "12/7/2025, 2:15:26 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 2376265790,
-    "seed": 94720,
-    "steps": 14990,
     "width": 350,
     "density": 0.5,
     "isRandomInit": true

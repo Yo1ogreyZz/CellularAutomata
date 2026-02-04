@@ -12,18 +12,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765022274842,
-    "timestamp": "12/6/2025, 7:57:54 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 3569956825,
-    "seed": 23192,
-    "steps": 4160,
-    "width": 300,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765022260998,
     "timestamp": "12/6/2025, 7:57:40 PM",
     "className": "Class2-Propagate",
@@ -264,18 +252,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765022093564,
-    "timestamp": "12/6/2025, 7:54:53 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 1853344252,
-    "seed": 65114,
-    "steps": 11990,
-    "width": 300,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765022083568,
     "timestamp": "12/6/2025, 7:54:43 PM",
     "className": "Class4-Complex",
@@ -504,18 +480,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765021935631,
-    "timestamp": "12/6/2025, 7:52:15 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 2709896281,
-    "seed": 21335,
-    "steps": 2820,
-    "width": 400,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765021908258,
     "timestamp": "12/6/2025, 7:51:48 PM",
     "className": "Class4-Complex",
@@ -666,18 +630,6 @@
     "radius": 2,
     "ruleId": 1999937463,
     "seed": 91319,
-    "steps": 10010,
-    "width": 550,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765021810890,
-    "timestamp": "12/6/2025, 7:50:10 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 1162664395,
-    "seed": 8646,
     "steps": 10010,
     "width": 550,
     "density": 0.5,
@@ -900,18 +852,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765021533745,
-    "timestamp": "12/6/2025, 7:45:33 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 1374153376,
-    "seed": 23745,
-    "steps": 7340,
-    "width": 500,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765021513373,
     "timestamp": "12/6/2025, 7:45:13 PM",
     "className": "Class2-Propagate",
@@ -965,18 +905,6 @@
     "className": "Class2-Stable",
     "radius": 2,
     "ruleId": 2504325866,
-    "seed": 97774,
-    "steps": 3390,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765021404064,
-    "timestamp": "12/6/2025, 7:43:24 PM",
-    "className": "Class2-IC-Period",
-    "radius": 2,
-    "ruleId": 1357770891,
     "seed": 97774,
     "steps": 3390,
     "width": 350,
@@ -1164,18 +1092,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765020961272,
-    "timestamp": "12/6/2025, 7:36:01 PM",
-    "className": "Class2-IC-Regime",
-    "radius": 2,
-    "ruleId": 2909731452,
-    "seed": 39568,
-    "steps": 10230,
-    "width": 250,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765020927571,
     "timestamp": "12/6/2025, 7:35:27 PM",
     "className": "Class2-Propagate",
@@ -1302,18 +1218,6 @@
     "radius": 2,
     "ruleId": 2512050863,
     "seed": 3495,
-    "steps": 4940,
-    "width": 450,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765020734097,
-    "timestamp": "12/6/2025, 7:32:14 PM",
-    "className": "Class2-IC-Period",
-    "radius": 2,
-    "ruleId": 2874067236,
-    "seed": 94295,
     "steps": 4940,
     "width": 450,
     "density": 0.5,
@@ -1484,18 +1388,6 @@
     "seed": 36317,
     "steps": 9800,
     "width": 250,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765020240680,
-    "timestamp": "12/6/2025, 7:24:00 PM",
-    "className": "Class2-IC-Period",
-    "radius": 2,
-    "ruleId": 1486458883,
-    "seed": 39021,
-    "steps": 3880,
-    "width": 350,
     "density": 0.5,
     "isRandomInit": true
   },
@@ -1735,18 +1627,6 @@
     "ruleId": 3626531532,
     "seed": 15862,
     "steps": 2960,
-    "width": 300,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765019987367,
-    "timestamp": "12/6/2025, 7:19:47 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 3530029826,
-    "seed": 24941,
-    "steps": 12760,
     "width": 300,
     "density": 0.5,
     "isRandomInit": true
@@ -2160,18 +2040,6 @@
     "isRandomInit": true
   },
   {
-    "id": 1765019403931,
-    "timestamp": "12/6/2025, 7:10:03 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 456493903,
-    "seed": 71300,
-    "steps": 6700,
-    "width": 400,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
     "id": 1765019362729,
     "timestamp": "12/6/2025, 7:09:22 PM",
     "className": "Class3-Chaotic",
@@ -2239,18 +2107,6 @@
     "ruleId": 2055342111,
     "seed": 31474,
     "steps": 10930,
-    "width": 350,
-    "density": 0.5,
-    "isRandomInit": true
-  },
-  {
-    "id": 1765019230305,
-    "timestamp": "12/6/2025, 7:07:10 PM",
-    "className": "Class2-IC-ConvTime",
-    "radius": 2,
-    "ruleId": 3093402807,
-    "seed": 31474,
-    "steps": 7260,
     "width": 350,
     "density": 0.5,
     "isRandomInit": true

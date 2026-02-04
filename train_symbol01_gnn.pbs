@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N gnn_training
+#PBS -N train_symbol01_gnn
 #PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
 #PBS -l walltime=01:00:00
 #PBS -P personal-e1538240
@@ -14,11 +14,6 @@ nvidia-smi
 python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 
 cd $PBS_O_WORKDIR
-python gnns/train_mlp_debruijn.py \
-  --pt output/pyg_radius2_debruijn_dedup.pt \
-  --imbalance class_weight \
-  --epochs 500 \
-  --batch_size 64 \
-  --lr 1e-3
+python gnns/train_symbol01_gnn.py --root output/pyg_radius2_symbol01_std
 
 echo "Job completed at: $(date)"

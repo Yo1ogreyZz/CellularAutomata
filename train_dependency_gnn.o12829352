@@ -1,0 +1,54 @@
+Wed Feb  4 17:15:59 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.163.01             Driver Version: 550.163.01     CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-40GB          On  |   00000000:41:00.0 Off |                    0 |
+| N/A   42C    P0             54W /  400W |       1MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+2.9.1+cu128 True
+device: cuda
+graphs: 449
+in_dim: 7 edge_dim: 3 num_classes: 8
+split sizes: 360 46 43
+class counts (train): [46, 14, 6, 1, 130, 46, 63, 54]
+class counts (val)  : [6, 2, 1, 0, 16, 6, 8, 7]
+class counts (test) : [6, 1, 0, 0, 16, 6, 8, 6]
+epoch 001 | train_loss 2.0570 | val_loss 1.9902 | val_acc 0.174 | val_macroF1 0.042
+epoch 010 | train_loss 1.7272 | val_loss 1.7174 | val_acc 0.348 | val_macroF1 0.074
+epoch 020 | train_loss 1.7211 | val_loss 1.7083 | val_acc 0.348 | val_macroF1 0.074
+epoch 030 | train_loss 1.6483 | val_loss 1.5940 | val_acc 0.348 | val_macroF1 0.074
+epoch 040 | train_loss 1.4276 | val_loss 1.3246 | val_acc 0.478 | val_macroF1 0.229
+epoch 050 | train_loss 1.4114 | val_loss 1.3245 | val_acc 0.478 | val_macroF1 0.224
+epoch 060 | train_loss 1.3804 | val_loss 1.3053 | val_acc 0.522 | val_macroF1 0.292
+epoch 070 | train_loss 1.3964 | val_loss 1.3001 | val_acc 0.478 | val_macroF1 0.228
+epoch 080 | train_loss 1.3496 | val_loss 1.3039 | val_acc 0.500 | val_macroF1 0.268
+
+✅ best_val_acc : 0.522
+✅ test_loss    : 1.4148
+✅ test_acc     : 0.442
+✅ test_macroF1 : 0.279
+
+Confusion Matrix (rows=true, cols=pred):
+true\pred | 0:Class1-Homogeneous | 1:Class2-IC-ConvTime | 2:Class2-IC-Period | 3:Class2-IC-Regime | 4:Class2-Propagate | 5:Class2-Stable | 6:Class3-Chaotic | 7:Class4-Complex
+0:Class1-Homogeneous | 4 | 0 | 0 | 0 | 2 | 0 | 0 | 0
+1:Class2-IC-ConvTime | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0
+2:Class2-IC-Period | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0
+3:Class2-IC-Regime | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0
+4:Class2-Propagate | 0 | 0 | 0 | 0 | 12 | 0 | 4 | 0
+5:Class2-Stable | 0 | 0 | 0 | 0 | 6 | 0 | 0 | 0
+6:Class3-Chaotic | 0 | 0 | 0 | 0 | 5 | 0 | 3 | 0
+7:Class4-Complex | 0 | 0 | 0 | 0 | 5 | 0 | 1 | 0
+Job completed at: Wed Feb  4 17:17:02 +08 2026
