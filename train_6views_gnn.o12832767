@@ -1,0 +1,74 @@
+Thu Feb  5 14:58:20 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.163.01             Driver Version: 550.163.01     CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-40GB          On  |   00000000:81:00.0 Off |                    0 |
+| N/A   45C    P0             52W /  400W |       1MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+2.9.1+cu128 True
+device: cuda
+aligned rules: 523
+num_classes: 5
+split sizes: 419 53 51
+class counts (train): [48, 147, 61, 94, 69]
+class_weight_main(invfreq^0.4): [1.178, 0.753, 1.07, 0.9, 1.019]
+dims:
+  dbg in/edge   : 16 7
+  sym in/edge   : 2 5
+  dep in/edge   : 7 3
+  subset in/edge: 16 2
+  scc in(token) : 5
+  inv in(token) : 9
+[Phase1(main-only)] epoch 001/80 | lr 1.00e-03 | train_loss 1.5996 | val_acc 0.340 | val_macroF1 0.101 | aux_w=(A:0.00,B:0.00,C:0.00,P:0.00,S:0.00)
+[Phase1(main-only)] epoch 010/80 | lr 1.00e-03 | train_loss 1.3282 | val_acc 0.453 | val_macroF1 0.311 | aux_w=(A:0.00,B:0.00,C:0.00,P:0.00,S:0.00)
+[Phase1(main-only)] epoch 020/80 | lr 1.00e-03 | train_loss 1.2421 | val_acc 0.509 | val_macroF1 0.417 | aux_w=(A:0.00,B:0.00,C:0.00,P:0.00,S:0.00)
+[Phase1(main-only)] epoch 030/80 | lr 1.00e-03 | train_loss 1.2688 | val_acc 0.491 | val_macroF1 0.406 | aux_w=(A:0.00,B:0.00,C:0.00,P:0.00,S:0.00)
+[Phase1(main-only)] Early stop at epoch 31 (patience=20, min_epochs=30)
+
+✅ Phase1 best_val_macroF1 : 0.429
+✅ Phase1 current val_mF1  : 0.429
+✅ Phase1 test_acc         : 0.490
+✅ Phase1 test_macroF1     : 0.370
+
+Confusion Matrix (rows=true, cols=pred):
+true\pred | 0:Class1-Homogeneous | 1:Class2-Propagate | 2:Class2-Stable | 3:Class3-Chaotic | 4:Class4-Complex
+0:Class1-Homogeneous | 4 | 1 | 0 | 1 | 0
+1:Class2-Propagate | 0 | 15 | 0 | 4 | 0
+2:Class2-Stable | 0 | 7 | 0 | 0 | 0
+3:Class3-Chaotic | 0 | 5 | 0 | 6 | 0
+4:Class4-Complex | 0 | 4 | 0 | 4 | 0
+[Phase2(main+aux)] epoch 001/120 | lr 3.00e-04 | train_loss 2.0113 | val_acc 0.453 | val_macroF1 0.297 | aux_w=(A:0.00,B:0.00,C:0.30,P:0.00,S:0.60)
+[Phase2(main+aux)] epoch 010/120 | lr 3.00e-04 | train_loss 1.8581 | val_acc 0.491 | val_macroF1 0.400 | aux_w=(A:0.00,B:0.00,C:0.30,P:0.00,S:0.60)
+[Phase2(main+aux)] epoch 020/120 | lr 7.50e-05 | train_loss 1.8225 | val_acc 0.472 | val_macroF1 0.370 | aux_w=(A:0.00,B:0.00,C:0.30,P:0.00,S:0.60)
+[Phase2(main+aux)] epoch 030/120 | lr 3.75e-05 | train_loss 1.8222 | val_acc 0.528 | val_macroF1 0.414 | aux_w=(A:0.00,B:0.00,C:0.30,P:0.00,S:0.60)
+[Phase2(main+aux)] epoch 040/120 | lr 1.87e-05 | train_loss 1.8317 | val_acc 0.528 | val_macroF1 0.414 | aux_w=(A:0.00,B:0.00,C:0.30,P:0.00,S:0.60)
+[Phase2(main+aux)] epoch 050/120 | lr 4.69e-06 | train_loss 1.8346 | val_acc 0.528 | val_macroF1 0.416 | aux_w=(A:0.00,B:0.00,C:0.30,P:0.00,S:0.60)
+[Phase2(main+aux)] Early stop at epoch 50 (patience=25, min_epochs=50)
+
+✅ Phase2 best_val_macroF1 : 0.427
+✅ Final val_acc           : 0.528
+✅ Final val_macroF1       : 0.427
+✅ Final test_acc          : 0.451
+✅ Final test_macroF1      : 0.331
+
+Confusion Matrix (rows=true, cols=pred):
+true\pred | 0:Class1-Homogeneous | 1:Class2-Propagate | 2:Class2-Stable | 3:Class3-Chaotic | 4:Class4-Complex
+0:Class1-Homogeneous | 4 | 1 | 0 | 1 | 0
+1:Class2-Propagate | 0 | 16 | 0 | 3 | 0
+2:Class2-Stable | 0 | 7 | 0 | 0 | 0
+3:Class3-Chaotic | 0 | 8 | 0 | 3 | 0
+4:Class4-Complex | 0 | 4 | 0 | 4 | 0
+Job completed at: Thu Feb  5 14:58:52 +08 2026

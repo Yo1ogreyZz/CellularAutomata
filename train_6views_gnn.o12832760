@@ -1,0 +1,36 @@
+Thu Feb  5 14:57:19 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.163.01             Driver Version: 550.163.01     CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-40GB          On  |   00000000:81:00.0 Off |                    0 |
+| N/A   46C    P0             52W /  400W |       1MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+2.9.1+cu128 True
+usage: train_6views_gnn.py [-h] [--dbg-root DBG_ROOT] [--sym-root SYM_ROOT]
+                           [--dep-root DEP_ROOT] [--subset-root SUBSET_ROOT]
+                           [--scc-root SCC_ROOT] [--inv-root INV_ROOT]
+                           [--seed SEED] [--train-ratio TRAIN_RATIO]
+                           [--val-ratio VAL_RATIO] [--test-ratio TEST_RATIO]
+                           [--batch-size BATCH_SIZE] [--invpow INVPOW]
+                           [--epochs1 EPOCHS1] [--lr1 LR1]
+                           [--patience1 PATIENCE1] [--min-epochs1 MIN_EPOCHS1]
+                           [--use-sampler1] [--sampler-power1 SAMPLER_POWER1]
+                           [--epochs2 EPOCHS2] [--lr2 LR2]
+                           [--patience2 PATIENCE2] [--min-epochs2 MIN_EPOCHS2]
+                           [--use-sampler2] [--sampler-power2 SAMPLER_POWER2]
+                           [--wA WA] [--wB WB] [--wC WC] [--wP WP] [--wS WS]
+train_6views_gnn.py: error: unrecognized arguments: 0
+Job completed at: Thu Feb  5 14:57:29 +08 2026

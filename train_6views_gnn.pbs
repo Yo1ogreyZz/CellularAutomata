@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N train_fusion_gnn
+#PBS -N train_6views_gnn
 #PBS -l select=1:ncpus=16:ngpus=1:mem=110gb
 #PBS -l walltime=01:00:00
 #PBS -P personal-e1538240
@@ -14,7 +14,11 @@ nvidia-smi
 python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 
 cd $PBS_O_WORKDIR
-python gnns/train_fusion_gnn.py --phase 1 --ckpt hier_stage1.pt
-python gnns/train_fusion_gnn.py --phase 2 --ckpt hier_stage1.pt
+python gnns/train_6views_gnn.py \
+  --view-roots output/pyg_radius2_debruijn_std output/pyg_radius2_symbol01_std output/pyg_radius2_dependency_std \
+  --view-names dbg sym dep \
+  --hidden 96 \
+  --class-weight-power 0.4
+
 
 echo "Job completed at: $(date)"
